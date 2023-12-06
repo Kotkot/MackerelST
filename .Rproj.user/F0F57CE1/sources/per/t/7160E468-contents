@@ -1,0 +1,390 @@
+##' Plot indices of abundance
+##' @param run model run output obtained from fit_mackerelST
+##' @param IA_assess index of abundance data.frame with the following column names ("Age", "Year", "IA_IESSNS")
+##' @param conf configuration file obtained from conf_TMB
+##' @param name name to use for saving the output plots
+##' @param folder defines save location
+##' @details Plot indices of abundance
+##' @return Plot indices of abundance
+##' @examples
+##' \dontrun{'blabla'}
+##' @export plot_IA
+plot_IA <- function(run, conf, IA_assess, name="step2", folder = getwd(), ...){
+  IA2 <- as.data.frame(summary(run$rep, "report"))
+  colnames(IA2) <- c("IA", "IA_sd")
+  IA2$Year <- rep(1:conf$Nyear, conf$Nage)
+  IA2$Age <- rep(1:conf$Nage, each=conf$Nyear)
+  IA2$IA_type <- rep(c("IA", "IA_corrected"), each=nrow(IA2)/2)
+  IA2 <- IA2 %>% mutate(Index = IA/1000000, Year = as.numeric(as.character(factor(as.factor(Year), labels=c(2010:2018)))))
+  p1 <- ggplot(IA2 %>% filter(IA_type == "IA"), aes(x=Year, y=Index, col=factor(Age))) + geom_line(size=2) + theme_bw() + gg_control
+  ggsave(p1, filename = paste0(folder, "/IAspatial", name, "_raw.pdf"), dpi ="retina", width = 10, height = 7, device = "pdf")
+  p2 <- ggplot(IA2 %>% filter(IA_type == "IA_corrected"), aes(x=Year, y=Index, col=factor(Age))) + geom_line(size=2) + theme_bw() + gg_control
+  ggsave(p2, filename = paste0(folder, "/IAspatial", name, "_corrected.pdf"), dpi ="retina", width = 10, height = 7, device = "pdf")
+
+  IA2 <- IA2 %>% left_join(IA_assess)
+
+  IA2 <- IA2 %>% mutate(YC = Year - Age)   # adding the cohort
+
+  # by year
+  p1 <- ggplot(IA2 %>% filter(IA_type == "IA"), aes(x=IA_IESSNS, y=Index)) + facet_wrap(~Age, scales="free") + geom_text(aes(label=Year, col=factor(Year))) +
+    geom_point() + theme_bw() + geom_smooth(method="lm", se=FALSE) + gg_control +
+    labs(x="IESSN estimate (billion ton)", y="Spatial model estimate (in CPUE unit)") +
+    stat_poly_eq(formula = y ~x, aes(label = paste(..rr.label.., sep = "~~~")), parse = TRUE)
+  ggsave(p1, filename = paste0(folder, "/IA_IESSN_vs_spatial", name, ".pdf"), dpi ="retina", width = 15, height = 10, device = "pdf")
+  p1 <- ggplot(IA2 %>% filter(IA_type == "IA_corrected"), aes(x=IA_IESSNS, y=Index)) + facet_wrap(~Age, scales="free") + geom_text(aes(label=Year, col=factor(Year))) +
+    geom_point() + theme_bw() + geom_smooth(method="lm", se=FALSE) + gg_control +
+    labs(x="IESSN estimate (billion ton)", y="Spatial model estimate (in CPUE unit)") +
+    stat_poly_eq(formula = y ~x, aes(label = paste(..rr.label.., sep = "~~~")), parse = TRUE)
+  ggsave(p1, filename = paste0(folder, "/IA_IESSN_vs_spatial", name, "_corrected.pdf"), dpi ="retina", width = 15, height = 10, device = "pdf")
+
+  # Internal consistency
+  p1 <- ggplot(IA2 %>% filter(IA_type == "IA"), aes(x=YC, y=Index, col=factor(Age))) +
+    geom_line(size=2) + theme_bw() + gg_control +
+    labs(x="Cohort year", y="Spatial model estimate (in CPUE unit)")
+  ggsave(p1, filename = paste0(folder, "/IA_cohort", name, ".pdf"), dpi ="retina", width = 10, height = 7, device = "pdf")
+  p1 <- ggplot(IA2 %>% filter(IA_type == "IA_corrected"), aes(x=YC, y=Index, col=factor(Age))) +
+    geom_line(size=2) + theme_bw() + gg_control +
+    labs(x="Cohort year", y="Spatial model estimate (in CPUE unit)")
+  ggsave(p1, filename = paste0(folder, "/IA_cohort_corrected", name, ".pdf"), dpi ="retina", width = 10, height = 7, device = "pdf")
+
+}
+
+
+##' Plot marginal effect of different variables
+##' @param run model run output obtained from fit_mackerelST function
+##' @param data data output from prepare_data function
+##' @param conf configuration file obtained from conf_TMB function
+##' @param name name to use for saving the output plots
+##' @param folder defines save location
+##' @details Plot indices of abundance
+##' @return Plot indices of abundance
+##' @export Marginal_plots
+# Producing the marginal effect plots (TO CHANGE)
+Marginal_plots <- function(run, data=dat, conf, variable="SST_0m", ref_year = 2018, folder = getwd(), ...) {
+
+  # selected variable
+  variables <- as.character(attributes(conf)$fixed_effect)
+  which.var <- which(variables == variable)
+  whichnot_var_year <- which(! variables %in% c("YEAR", variable))
+  dat <- data.frame(YEAR = factor(ref_year), apply(dat[,whichnot_var_year], 2, mean))
+  colnames(dat) <- c("YEAR", variables[whichnot_var_year])
+  dat1 <- expand.grid(dat, X= seq(min(dat[,variable]), max(dat[,variable]), length.out=100))
+  colnames(dat1) <- c(colnames(dat), variable)
+
+  X_var = mgcv::predict.gam(data$mgcv_mod, type = "lpmatrix", newdata = dat1)
+
+  Marginal_df <- c()
+  for (age in 1:10){
+    betas <- opt$par[(1:ncol(X_var)+ncol(X_var)*(age-1))]
+    cov = run$rep$cov.fixed[(1:ncol(X_var)+ncol(X_var)*(age-1)),(1:ncol(X_var)+ncol(X_var)*(age-1))]
+    vars <- rep(0, nrow(X_var))
+    for (obs in 1:nrow(X_var)){
+      xx <- X_var[obs,]
+      for (i in 1:nrow(cov)){
+        for (j in 1:ncol(cov)){
+          vars[obs] = vars[obs] + xx[i]*xx[j]*exp(betas[i]*xx[i])*exp(betas[j]*xx[j])*cov[i,j]
+        }
+      }
+    }
+    dat1$pred <- exp(X_SST %*% betas)
+    dat1$pred_se <- sqrt(vars)
+    dat1$CI_lower <- dat1$pred - 1.96*dat1$pred_se
+    dat1$CI_upper <- dat1$pred + 1.96*dat1$pred_se
+    dat1$age <- age
+    Marginal_df <- rbind(Marginal_df, dat1)
+  }
+
+  psst <- ggplot(Marginal_df, aes(x=variable, y=pred, col=factor(age))) + geom_line(size=1.5) +
+    theme_bw() + scale_color_viridis_d() + labs(x=Marginal_df, y = "Marginal effect") + coord_cartesian(ylim=c(0, 300))
+  ggsave(psst, filename = paste0(folder, "/Marginal_", variable, ".pdf"),
+         dpi ="retina", width = 6, height = 4, device = "pdf")
+
+}
+
+
+
+##' Plot various map of predicted density, epsilon, etc on prediction grid
+##' @param run model run output obtained from fit_mackerelST function
+##' @param data data output from prepare_data function
+##' @param conf configuration file obtained from conf_TMB function
+##' @param name name to use for saving the output plots
+##' @param folder defines save location
+##' @details Plots various maps of outputs
+##' @return Plots various maps of outputs
+##' @export Plot_maps
+# save map outputs
+Plot_maps <- function(pred_mu=test2, pred_epsilon=qwe2, name="step2", no_fish_zone=FALSE, plot_data=FALSE, folder = getwd(), conf, ...)  {
+  ## Prediction maps
+
+  if (no_fish_zone == TRUE){
+    pred_mu$Pred[which(is.na(pred_mu$isNA))] <- NA
+    pred_mu$logPred[which(is.na(pred_mu$isNA))] <- NA
+  }
+
+  # by year
+  for (yr in seq_along(sort(unique(data$YEAR))))
+  {
+    yy = sort(unique(data$YEAR))[yr]
+    p1 <- ggplot(subset(pred_mu, YEAR == yy) %>% mutate(AGE_fake = as.factor(paste0("Age ", AGE)),
+                                                        AGE_fake2 = factor(AGE_fake, levels=paste0("Age ", 1:15)),
+                                                        Pred2 = ifelse(Pred>quantile(Pred,0.995, na.rm=T), quantile(Pred,0.995, na.rm=T), Pred))) +
+      geom_raster(aes_string("LON", "LAT", fill = "logPred")) +
+      geom_sf(data = Atlantic$geometry, color ="grey27", size = .2)+
+      geom_sf(data = Exclude_by_year_simple[[yr]]$geometry, col="red", fill=NA, size = 0.2) +
+      xlab("") + ylab("") +
+      facet_wrap(~ AGE_fake2) +
+      coord_sf()+ theme_bw() +
+      # scale_fill_viridis_c() +
+      scale_fill_gradient2(low="darkblue", mid="white", high="red2", midpoint=0) +
+      ggtitle(paste0("CPUE distribution in ", yy)) +
+      theme(axis.title = element_text(size=15),
+            axis.text = element_text(size=14),
+            plot.title = element_text(hjust=0.5, size=18),
+            strip.text = element_text(size=14))
+    ggsave(p1, filename = paste0(folder, "/Prediction", yy, "_", name, "nofishzone", no_fish_zone, ".pdf"), dpi ="retina", width = 12, height = 10, device = "pdf")
+  }
+  # by age
+  for (age in 1:conf$Nage)
+  {
+    p1 <- ggplot(pred_mu %>% filter(AGE == age)) +
+      geom_raster(aes_string("LON", "LAT", fill = "logPred")) +
+      geom_sf(data = Atlantic$geometry, color ="grey27", size = .2)+
+      # geom_sf(data = Exclude_by_year_simple[[yr]]$geometry, col="red", fill=NA, size = 0.2) +
+      xlab("") + ylab("") +
+      facet_wrap(~ YEAR) +
+      coord_sf()+ theme_bw() +
+      # scale_fill_viridis_c(option = "plasma") +
+      scale_fill_gradient2(low="darkblue", mid="white", high="red2", midpoint=1) +
+      ggtitle(paste0("CPUE distribution for age ", age)) +
+      theme(axis.title = element_text(size=15),
+            axis.text = element_text(size=14),
+            plot.title = element_text(hjust=0.5, size=18),
+            strip.text = element_text(size=14))
+    ggsave(p1, filename = paste0(folder, "/Prediction_age", age,"_", name,  "nofishzone", no_fish_zone, ".pdf"), dpi ="retina", width = 12, height = 10, device = "pdf")
+  }
+  # by age (truncated at values below 1)
+  for (age in 1:conf$Nage)
+  {
+    p1 <- ggplot(pred_mu %>% filter(AGE == age) %>% mutate(logPred_trunc = ifelse(logPred<1, 1, logPred))) +
+      geom_raster(aes_string("LON", "LAT", fill = "logPred_trunc")) +
+      geom_sf(data = Atlantic$geometry, color ="grey27", size = .2)+
+      # geom_sf(data = Exclude_by_year_simple[[yr]]$geometry, col="red", fill=NA, size = 0.2) +
+      xlab("") + ylab("") +
+      facet_wrap(~ YEAR) +
+      coord_sf()+ theme_bw() +
+      scale_fill_viridis_c(option = "plasma") +
+      # scale_fill_gradient2(low="darkblue", mid="white", high="red2", midpoint=1) +
+      ggtitle(paste0("CPUE distribution for age ", age)) +
+      theme(axis.title = element_text(size=15),
+            axis.text = element_text(size=14),
+            plot.title = element_text(hjust=0.5, size=18),
+            strip.text = element_text(size=14))
+    ggsave(p1, filename = paste0(folder, "/Prediction_truncated_age", age,"_", name,  "nofishzone", no_fish_zone, ".pdf"), dpi ="retina", width = 12, height = 10, device = "pdf")
+  }
+
+  if (plot_data  == TRUE){
+    ## For the actual data itself
+    for (age in 1:conf$Nage)
+    {
+      asd <- data
+      asd$logobs <- log(asd[,grep("ID", colnames(data))+age]+0.01)
+      p1 <- ggplot(asd) +
+        geom_point(aes_string("LON", "LAT", fill = "logobs", col="logobs"), size=0.2) +
+        geom_sf(data = Atlantic$geometry, color ="grey27", size = .2)+
+        # geom_sf(data = Exclude_by_year_simple[[yr]]$geometry, col="red", fill=NA, size = 0.2) +
+        xlab("") + ylab("") +
+        facet_wrap(~ YEAR) +
+        coord_sf()+ theme_bw() +
+        scale_fill_viridis_c(option = "plasma") +
+        scale_color_viridis_c(option = "plasma") +
+        ggtitle(paste0("CPUE distribution for age ", age)) +
+        theme(axis.title = element_text(size=15),
+              axis.text = element_text(size=14),
+              plot.title = element_text(hjust=0.5, size=18),
+              strip.text = element_text(size=14))
+      ggsave(p1, filename = paste0(folder, "/Obs_age", age, "nofishzone", no_fish_zone, ".pdf"), dpi ="retina", width = 12, height = 10, device = "pdf")
+    }
+    ## observation trucated at 1
+    for (age in 1:conf$Nage)
+    {
+      asd <- data
+      asd$logobs <- ifelse(asd[,grep("ID", colnames(data))+age]>1, log(asd[,grep("ID", colnames(data))+age]), 0)
+      p1 <- ggplot(asd) +
+        geom_point(aes_string("LON", "LAT", fill = "logobs", col="logobs"), size=0.2) +
+        geom_sf(data = Atlantic$geometry, color ="grey27", size = .2)+
+        # geom_sf(data = Exclude_by_year_simple[[yr]]$geometry, col="red", fill=NA, size = 0.2) +
+        xlab("") + ylab("") +
+        facet_wrap(~ YEAR) +
+        coord_sf()+ theme_bw() +
+        scale_fill_viridis_c(option = "plasma") +
+        scale_color_viridis_c(option = "plasma") +
+        ggtitle(paste0("CPUE distribution for age ", age)) +
+        theme(axis.title = element_text(size=15),
+              axis.text = element_text(size=14),
+              plot.title = element_text(hjust=0.5, size=18),
+              strip.text = element_text(size=14))
+      ggsave(p1, filename = paste0(folder, "/Obs_trunc_age", age, "nofishzone", no_fish_zone, ".pdf"), dpi ="retina", width = 12, height = 10, device = "pdf")
+    }
+  }
+
+  ## For the estimated spatio-temporal field
+  for (yr in seq_along(sort(unique(data$YEAR))))
+  {
+    yy = sort(unique(data$YEAR))[yr]
+    p1 <- ggplot(subset(pred_epsilon, YEAR == yy) %>% mutate(AGE_fake = as.factor(paste0("Age ", AGE)), AGE_fake2 = factor(AGE_fake, levels=paste0("Age ", 1:15)))) +
+      geom_raster(aes_string("LON", "LAT", fill = "Pred")) +
+      geom_sf(data = Atlantic$geometry, color ="grey27", size = .2)+
+      geom_sf(data = Exclude_by_year_simple[[yr]]$geometry, col="red", fill=NA, size = 0.2) +
+      xlab("") + ylab("") +
+      facet_wrap(~ AGE_fake2) +
+      coord_sf()+ theme_bw() +
+      scale_fill_gradient2(low="darkblue", mid="white", high="red") +
+      ggtitle(paste0("CPUE distribution in ", yy)) +
+      theme(axis.title = element_text(size=15),
+            axis.text = element_text(size=14),
+            plot.title = element_text(hjust=0.5, size=18),
+            strip.text = element_text(size=14))
+    ggsave(p1, filename = paste0(folder, "/Epsilon_st", yy, "_", name, "nofishzone", no_fish_zone, ".pdf"), dpi ="retina", width = 12, height = 10, device = "pdf")
+  }
+  # by age
+  for (age in 1:conf$Nage)
+  {
+    p1 <- ggplot(subset(pred_epsilon, AGE == age)) +
+      geom_raster(aes_string("LON", "LAT", fill = "Pred")) +
+      geom_sf(data = Atlantic$geometry, color ="grey27", size = .2)+
+      geom_sf(data = Exclude_by_year_simple[[yr]]$geometry, col="red", fill=NA, size = 0.2) +
+      xlab("") + ylab("") +
+      facet_wrap(~ YEAR) +
+      coord_sf()+ theme_bw() +
+      scale_fill_gradient2(low="darkblue", mid="white", high="red") +
+      ggtitle(paste0("CPUE distribution age ", age)) +
+      theme(axis.title = element_text(size=15),
+            axis.text = element_text(size=14),
+            plot.title = element_text(hjust=0.5, size=18),
+            strip.text = element_text(size=14))
+    ggsave(p1, filename = paste0(folder, "/Epsilon_st_age", age, "_", name, "nofishzone", no_fish_zone, ".pdf"), dpi ="retina", width = 12, height = 10, device = "pdf")
+  }
+
+}
+
+
+
+##' Model diagnostics: QQplot of residuals
+##' @param run model run output obtained from fit_mackerelST function
+##' @param data data output from prepare_data function
+##' @param conf configuration file obtained from conf_TMB function
+##' @param name name to use for saving the output plots
+##' @param folder defines save location
+##' @details residual qqplot
+##' @return residual qqplot
+##' @export Plot_residuals
+#### Model diagnostics
+Plot_residuals <- function(run, data, conf, name="step2", folder = getwd(), ...){
+  resids <- list()
+
+  to_remove <- which(is.na(data$tmb_data$yobs[,1]) == TRUE)
+  if(length(to_remove)==0) to_remove=NULL
+
+  for (age in 1:conf$Nage){
+    # age = 4
+    model_output <- list()
+    model_output$response <- data$yobs[-to_remove,age]
+    model_output$mu <- run$obj$report()$mu[-to_remove,age]
+    model_output$family <- "tweedie"
+    model_output$ln_phi <- opt$par[grep("ln_phi", names(opt$par))][age]
+    model_output$thetaf <- opt$par[grep("thetaf", names(opt$par))][age]
+    model_output$obj <- run$obj
+    model_output$tmb_data <- data$tmb_data
+
+    d <- data[-to_remove,]
+
+    d$residuals <- residuals.sdmTMB(model_output)
+    d <- d[order(d$residuals),]
+    d$qq <- (qnorm(ppoints(nrow(d))))
+    p1 <- ggplot(d, aes(x= qq, y=residuals)) + geom_point(size=1) + geom_abline(slope=1) + theme_bw() +
+      scale_color_viridis_c(option = "plasma") + labs(x="Theoretical", y="Sample") + ggtitle(paste0("Age:", age))
+    resids[[age]] <- p1
+    ggsave(p1, filename = paste0(folder, "/res_age", age, name, "_aggregated.pdf"), dpi ="retina", width = 7, height = 7, device = "pdf")
+    p2 <- ggplot(d, aes(x= qq, y=residuals)) + geom_point(size=1) + geom_abline(slope=1) + theme_bw() + facet_wrap(~YEAR) +
+      scale_color_viridis_c(option = "plasma") + labs(x="Theoretical", y="Sample") + ggtitle(paste0("Age:", age))
+    p2
+    ggsave(p2, filename = paste0(folder, "/res_age", age, name, "_byyear.pdf"), dpi ="retina", width = 7, height = 7, device = "pdf")
+  }
+
+  pp <- do.call("grid.arrange", c(resids, ncol=4, nrow=3))
+  ggsave(pp, filename = paste0(folder, "/res_age_all", name, "_aggregated.pdf"), dpi ="retina", width = 12, height = 10, device = "pdf")
+
+}
+
+
+##' Plot center of gravity of predicted distribution over the grid
+##' @param run model run output obtained from fit_mackerelST function
+##' @param data data output from prepare_data function
+##' @param conf configuration file obtained from conf_TMB function
+##' @param name name to use for saving the output plots
+##' @param folder defines save location
+##' @details CG plot
+##' @return CG plot
+##' @export CG_plots
+#### Plotting the center of gravity
+CG_plots <- function(data=test2, name="step2", no_fish_zone=FALSE, folder = getwd(), conf, ...){
+
+  loc_NAs <- reshape2::melt(proj_NA)
+  colnames(loc_NAs) <- c("LOC", "YEAR", "isNA")
+  loc_NAs$YEAR <- as.factor(loc_NAs$YEAR)
+  loc_NAs$YEAR <- factor(loc_NAs$YEAR, labels=2010:2018)
+  if (no_fish_zone == TRUE){
+    data <- data %>% left_join(loc_NAs) %>% mutate(Pred = ifelse(is.na(isNA) == TRUE, NA, Pred),
+                                                   logPred  = ifelse(is.na(isNA) == TRUE, NA, logPred))
+  }
+  CG <- data %>% group_by(YEAR, AGE) %>% summarize(meanX = sum(LON*Pred/sum(Pred, na.rm=T), na.rm=T), meanY = sum(LAT*Pred/sum(Pred, na.rm=T), na.rm=T))
+  CG <- CG %>% mutate(YC = as.factor(as.numeric(YEAR) - as.numeric(AGE)+2009))
+  p1 <- ggplot(Atlantic) + geom_sf() + coord_sf(xlim = c(-30, 15), ylim = c(60, 71), expand = FALSE) +
+    geom_point(data=CG, aes(x=meanX, y=meanY, col=factor(YEAR))) + geom_path(data=CG, aes(x=meanX, y=meanY), col=1) +
+    theme_bw() + gg_control + facet_wrap(~factor(AGE)) + geom_text_repel(data=CG, aes(x=meanX, y=meanY, label=YEAR), size=4, max.overlaps=20, segment.color = NA) +
+    labs(x="Longitude", y="Latitude")
+  p1
+  ggsave(p1, filename = paste0(folder, "/CG_", name, "nofishzone", no_fish_zone, ".pdf"), dpi ="retina", width = 15, height = 10, device = "pdf")
+  p2 <- ggplot(Atlantic) + geom_sf() + coord_sf(xlim = c(-30, 15), ylim = c(60, 71), expand = FALSE) +
+    geom_point(data=CG, aes(x=meanX, y=meanY, col=YEAR)) + geom_path(data=CG, aes(x=meanX, y=meanY), col=1) +
+    theme_bw() + gg_control + facet_wrap(~YC) + geom_text_repel(data=CG, aes(x=meanX, y=meanY, label=YEAR), size=4, max.overlaps=20, segment.color = NA) +
+    labs(x="Longitude", y="Latitude")
+  p2
+  ggsave(p2, filename = paste0(folder, "/CG_YC_", name, "nofishzone", no_fish_zone, ".pdf"), dpi ="retina", width = 15, height = 10, device = "pdf")
+}
+
+
+
+##' Plot indices of abundance
+##' @param run model run output obtained from fit_mackerelST function
+##' @param data data output from prepare_data function
+##' @param conf configuration file obtained from conf_TMB function
+##' @param name name to use for saving the output plots
+##' @param folder defines save location
+##' @details Plot indices of abundance
+##' @return Plot indices of abundance
+##' @export Plot_env
+#### Plotting the distribution of the environmental covariates to explain their distribution shift
+Plot_env <- function(data = test3, var = "SST_scl", truncate=FALSE, conf) {
+
+  if(var == "SST_scl") data$resp <- data$SST_scl
+  if(var == "CHL_scl") data$resp <- data$CHL_scl
+  if(var == "mixed_scl") data$resp <- data$mixed_scl
+  data <- data %>% mutate(resp_trunc = ifelse(resp > quantile(resp, 0.99), quantile(resp, 0.99), ifelse(resp < quantile(resp, 0.01), quantile(resp, 0.01), resp)))
+  if (truncate==TRUE) data$resp_val = data$resp_trunc
+  if (truncate==FALSE) data$resp_val = data$resp
+  p1 <- ggplot(data) +
+    geom_raster(aes(x=LON, y=LAT, fill = resp_val)) +
+    geom_sf(data = Atlantic$geometry, color ="grey27", size = .2)+
+    xlab("") + ylab("") +
+    coord_sf()+ theme_bw() +
+    facet_wrap(~YEAR)+
+    # scale_fill_viridis_c() +
+    scale_fill_gradient2(low="darkblue", mid="white", high="red2", midpoint=0) +
+    ggtitle(paste0(var, " distribution")) +
+    theme(axis.title = element_text(size=15),
+          axis.text = element_text(size=14),
+          plot.title = element_text(hjust=0.5, size=18),
+          strip.text = element_text(size=14))
+  ggsave(p1, filename = paste0(folder, "/Env_map", "_", var, ".pdf"), dpi ="retina", width = 12, height = 10, device = "pdf")
+}
