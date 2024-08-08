@@ -107,11 +107,21 @@ if (plotting == TRUE) {
 asd <- my_df_sf %>% filter(ID %in% c(1:7,9:12))
 asd <- asd %>% mutate(col = ifelse(ID %in% c(1,2,3,5,6,7,10,11), "Permanent", "Dynamic"))
 
+# library(ggpattern)
+Atlantic <- st_crop(world, c(xmin = -65, ymin = 40, xmax = 30, ymax = 85))
+
 Fig1 <- ggplot(Atlantic) + geom_sf() + theme_bw() + 
   geom_sf(data = asd, aes(fill=col), col=1, size = 0.2) + 
-  geom_sf_label(data = asd, aes(label = ID)) + 
-  scale_fill_viridis_d(name="Strata type") +
-  xlab("Longitude") + ylab("Latitude") + 
-  theme(axis.title = element_text(size=15), axis.text = element_text(size=13))
-ggsave(Fig1, filename = paste0(getwd(), "/MS/Figs/Strata.png"), dpi ="retina", width = 8, height = 6, device = "png")
+  geom_sf_label(data = asd, aes(label = ID), size = 2.2) + 
+  # scale_fill_viridis_d(name="Strata type") +
+  scale_fill_manual(name="Strata type:", values=c("#440154FF", "#FDF725FF")) +
+  # scale_pattern_manual(values = c(Dynamic = "stripe", Permanent = "none")) +
+  xlab("Longitude") + ylab("Latitude") + coord_sf(ylim=c(55,80), xlim=c(-50, 22)) + 
+  theme(axis.title = element_text(size=8), axis.text = element_text(size=7),
+        legend.title = element_text(size = 7),legend.text = element_text(size = 6),
+        legend.position = c(0.17, 0.83),
+        legend.background = element_rect(fill = NA, color = NA)) 
+ggsave(Fig1, filename = paste0(getwd(), "/MS/Figs/Figure2.tiff"), dpi = 300, width = 85, height = 75, device = "tiff", unit="mm")
+# ggsave(Fig1, filename = paste0(getwd(), "/MS/Figs/Figure2.jpg"), dpi = 300, width = 17, height = 15, device = "jpeg", unit="cm")
+# ggsave(Fig1, filename = paste0(getwd(), "/MS/Figs/Figure2.tiff"), dpi =300, width = 8.5, height = 7.5, device = "tiff", unit="cm")
 

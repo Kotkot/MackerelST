@@ -424,41 +424,56 @@ CG_plots <- function(run=Mod_pred, data = datdat, name="step2", no_fish_zone=FAL
   p3 <- ggplot(Atlantic) + geom_sf() + coord_sf(xlim = c(-30, 15), ylim = c(60, 71), expand = FALSE) +
     geom_path(data=pre_2012, aes(x=meanX, y=meanY), col=grey(0.7), linewidth=2) + 
     geom_point(data=pre_2012, aes(x=meanX, y=meanY, col=factor(AGE)), size=3) + 
+    # geom_path(data=CG %>% filter(YC <= 2012), aes(x=meanX, y=meanY, col=YC), col=grey(0.8, alpha=0.5), linewidth=1) +
+    # geom_point(data=CG %>% filter(YC <= 2012), aes(x=meanX, y=meanY), size=2, col=grey(0.8, alpha=0.5)) +
+    # geom_point(data=CG %>% filter(YC <= 2012, AGE ==3), aes(x=meanX, y=meanY), size=3, col="#440154FF") +
+    # geom_point(data=CG %>% filter(YC <= 2012, AGE %in% c(3,7,10)), aes(x=meanX, y=meanY, col=factor(AGE)), size=2) +
+    geom_convexhull(data=CG %>% filter(YC <= 2012, AGE ==3), aes(x=meanX, y=meanY), alpha = 0.7, fill=NA, col="#440154FF", linewidth=1.1) +
+    geom_convexhull(data=CG %>% filter(YC <= 2012, AGE ==5), aes(x=meanX, y=meanY), alpha = 0.7, fill=NA, col="#365C8DFF", linewidth=1.1) +
+    geom_convexhull(data=CG %>% filter(YC <= 2012, AGE ==10), aes(x=meanX, y=meanY), alpha = 0.7, fill=NA, col="#FDE725FF", linewidth=1.1) +
     theme_bw() + gg_control + 
     geom_text_repel(data=pre_2012, aes(x=meanX, y=meanY, label=AGE, col=factor(AGE)), size=4, max.overlaps=20, segment.color = NA, nudge_x=c(0.4,0.1,-0.1,-0.1,-0.5,-0.5,0.2,0), nudge_y=c(0,0.4,0,0,0.4,0.4,0.5,0)) + 
     labs(x="Longitude", y="Latitude") + scale_color_manual(values=c(scales::viridis_pal()(8)), name="Age") + scale_fill_manual(values=c(scales::viridis_pal()(8)), name="Age")+ 
     ggtitle("(a) Average pre-2012")# + labs(subtitle = "(a)")
   p30 <- p3 + theme(legend.position="none")
   p31 <- ggplot(Atlantic) + geom_sf() + coord_sf(xlim = c(-30, 15), ylim = c(60, 71), expand = FALSE) +
-    geom_path(data=post_2013, aes(x=meanX, y=meanY), col=grey(0.2), linewidth=2) +
+    geom_path(data=post_2013, aes(x=meanX, y=meanY), col=grey(0.7), linewidth=2) +
     geom_point(data=post_2013, aes(x=meanX, y=meanY, col=factor(AGE)), size=3) +  
+    # geom_point(data=CG %>% filter(YC > 2012, AGE %in% c(3,7,10)), aes(x=meanX, y=meanY, col=factor(AGE)), size=2) +
+    geom_convexhull(data=CG %>% filter(YC > 2012, AGE ==3), aes(x=meanX, y=meanY), alpha = 0.7, fill=NA, col="#440154FF", linewidth=1.1) +
+    geom_convexhull(data=CG %>% filter(YC > 2012, AGE ==5), aes(x=meanX, y=meanY), alpha = 0.7, fill=NA, col="#365C8DFF", linewidth=1.1) +
+    geom_convexhull(data=CG %>% filter(YC > 2012, AGE ==10), aes(x=meanX, y=meanY), alpha = 0.7, fill=NA, col="#FDE725FF", linewidth=1.1) +
+    # geom_path(data=CG %>% filter(YC > 2012), aes(x=meanX, y=meanY, col=YC), col=grey(0.8, alpha=0.5), linewidth=1) +
+    # geom_point(data=CG %>% filter(YC > 2012), aes(x=meanX, y=meanY), size=2, col=grey(0.8, alpha=0.5)) +
+    # geom_point(data=CG %>% filter(YC > 2012, AGE ==3), aes(x=meanX, y=meanY), size=3, col="#440154FF") +
+    # geom_point(data=CG %>% filter(YC > 2012, AGE ==10), aes(x=meanX, y=meanY), size=3, col="#FDE725FF") +
     theme_bw() + gg_control + 
     geom_text_repel(data=post_2013, aes(x=meanX, y=meanY, label=AGE, col=factor(AGE)), size=4, max.overlaps=20, segment.color = NA, nudge_x=c(-0.5,-0.2,-0.5,-0.5,-0.5)) + 
     labs(x="Longitude", y="Latitude") + scale_color_manual(values=c(scales::viridis_pal()(8))[1:5], name="Age") + scale_fill_manual(values=c(scales::viridis_pal()(8))[1:5], name="Age")  + 
     ggtitle("(b) Average post-2013")+ theme(legend.position="none")# + labs(subtitle = "(b)")
   p32 <- ggplot(Atlantic) + geom_sf() + coord_sf(xlim = c(-30, 15), ylim = c(60, 71), expand = FALSE) +
-    geom_path(data=CG %>% filter(YC == 2007), aes(x=meanX, y=meanY), col=grey(0.2), linewidth=2) +
+    geom_path(data=CG %>% filter(YC == 2007), aes(x=meanX, y=meanY), col=grey(0.7), linewidth=2) +
     geom_point(data=CG %>% filter(YC == 2007), aes(x=meanX, y=meanY, col=factor(AGE)), size=3) +  
     theme_bw() + gg_control + 
     geom_text_repel(data=CG %>% filter(YC == 2007), aes(x=meanX, y=meanY, label=AGE, col=factor(AGE)), size=4, max.overlaps=20, segment.color = NA, nudge_y=c(0.5,0,0.4, 0.5,0.5,0.2,0.7,-0.5), nudge_x=c(0,-0.5,0.4,-0.1,-0.4,0.6,0,0)) + 
     labs(x="Longitude", y="Latitude") + scale_color_manual(values=c(scales::viridis_pal()(8)), name="Age") + scale_fill_manual(values=c(scales::viridis_pal()(8)), name="Age") + 
     ggtitle("(c) 2007") + theme(legend.position="none")# + labs(subtitle = "(c)")
   p33 <- ggplot(Atlantic) + geom_sf() + coord_sf(xlim = c(-30, 15), ylim = c(60, 71), expand = FALSE) +
-    geom_path(data=CG %>% filter(YC == 2009), aes(x=meanX, y=meanY), col=grey(0.2), linewidth=2) +
+    geom_path(data=CG %>% filter(YC == 2009), aes(x=meanX, y=meanY), col=grey(0.7), linewidth=2) +
     geom_point(data=CG %>% filter(YC == 2009), aes(x=meanX, y=meanY, col=factor(AGE)), size=3) +  
     theme_bw() + gg_control + 
     geom_text_repel(data=CG %>% filter(YC == 2009), aes(x=meanX, y=meanY, label=AGE, col=factor(AGE)), size=4, max.overlaps=20, segment.color = NA, nudge_y=c(0,0.2,0.1,-0.2,0.45,0.5,0.5,0.5), nudge_x=c(0,0,0.3,0,0.2,0,0,0)) + 
     labs(x="Longitude", y="Latitude") + scale_color_manual(values=c(scales::viridis_pal()(8)), name="Age") + scale_fill_manual(values=c(scales::viridis_pal()(8)), name="Age")  + 
     ggtitle("(d) 2009")+ theme(legend.position="none")# + labs(subtitle = "(d)")
   p34 <- ggplot(Atlantic) + geom_sf() + coord_sf(xlim = c(-30, 15), ylim = c(60, 71), expand = FALSE) +
-    geom_path(data=CG %>% filter(YC == 2011), aes(x=meanX, y=meanY), col=grey(0.2), linewidth=2) +
+    geom_path(data=CG %>% filter(YC == 2011), aes(x=meanX, y=meanY), col=grey(0.7), linewidth=2) +
     geom_point(data=CG %>% filter(YC == 2011), aes(x=meanX, y=meanY, col=factor(AGE)), size=3) +  
     theme_bw() + gg_control + 
     geom_text_repel(data=CG %>% filter(YC == 2011), aes(x=meanX, y=meanY, label=AGE, col=factor(AGE)), size=4, max.overlaps=20, segment.color = NA, nudge_y=0.5) + 
     labs(x="Longitude", y="Latitude") + scale_color_manual(values=c(scales::viridis_pal()(8))[1:7], name="Age") + scale_fill_manual(values=c(scales::viridis_pal()(8))[1:7], name="Age")  + 
     ggtitle("(e) 2011")+ theme(legend.position="none")# + labs(subtitle = "(e)")
   p35 <- ggplot(Atlantic) + geom_sf() + coord_sf(xlim = c(-30, 15), ylim = c(60, 71), expand = FALSE) +
-    geom_path(data=CG %>% filter(YC == 2013), aes(x=meanX, y=meanY), col=grey(0.2), linewidth=2) +
+    geom_path(data=CG %>% filter(YC == 2013), aes(x=meanX, y=meanY), col=grey(0.7), linewidth=2) +
     geom_point(data=CG %>% filter(YC == 2013), aes(x=meanX, y=meanY, col=factor(AGE)), size=3) +  
     theme_bw() + gg_control + 
     geom_text_repel(data=CG %>% filter(YC == 2013), aes(x=meanX, y=meanY, label=AGE, col=factor(AGE)), size=4, max.overlaps=20, segment.color = NA, nudge_y=c(0.5,0.7,0.5,0.7,0.5)) + 
@@ -471,7 +486,8 @@ CG_plots <- function(run=Mod_pred, data = datdat, name="step2", no_fish_zone=FAL
   pp <- grid.arrange(grobs=list(p30,p31,p32,p33,p34,p35,p_legend), layout_matrix=matrix(c(1,1,1,2,2,2,7,
                                                                                           3,3,3,4,4,4,7,
                                                                                           5,5,5,6,6,6,7),nrow=3,byrow=T))
-  ggsave(pp, filename = paste0(folder, "/CG_YC_select_nnofishzone", no_fish_zone, ".png"), dpi ="retina", width = 11, height = 10, device = "png")
+  ggsave(pp, filename = "D:\\Dropbox\\IMR_projects\\Mackerel_distribution\\MS\\Figs\\Fig5new.png", dpi ="retina", width = 13, height = 11, device = "png")
+  # ggsave(pp, filename = paste0(folder, "/CG_YC_select_nnofishzone", no_fish_zone, "new.png"), dpi ="retina", width = 11, height = 10, device = "png")
 } 
 
 
@@ -496,24 +512,26 @@ Plot_env <- function(run = Mod_pred, var = "SST_0m_scl", truncate=FALSE, folder 
 	dat_use = run$dens_pred %>% filter(AGE == 1)
   dat_use$resp <- dat_use[,eval(parse(text=var))]
   if (var == "SST_0m") dat_use$resp <- dat_use$resp-273.15
-  dat_use <- dat_use %>% mutate(resp_trunc = ifelse(resp > quantile(resp, 0.99), quantile(resp, 0.99), ifelse(resp < quantile(resp, 0.01), quantile(resp, 0.01), resp)))
+  dat_use <- dat_use %>% mutate(resp_trunc = ifelse(resp > quantile(resp, 0.99, na.rm=T), quantile(resp, 0.99, na.rm=T), ifelse(resp < quantile(resp, 0.01, na.rm=T), quantile(resp, 0.01, na.rm=T), resp)))
   if (truncate==TRUE) dat_use$resp_val = dat_use$resp_trunc
   if (truncate==FALSE) dat_use$resp_val = dat_use$resp
   p1 <- ggplot(dat_use) +
     geom_raster(aes(x=X1000, y=Y1000, fill = resp_val)) +
     geom_sf(data = Atlantic_proj$geometry, color ="grey27", size = .2)+
-    xlab("") + ylab("") +
+    xlab("Easting (km)") + ylab("Northing (km)") +
     coord_sf(xlim = c(1000,5000), ylim = c(4000, 6200),
              datum = projection_km, expand = FALSE) + theme_bw() + 
-    facet_wrap(~YEAR)+
+    facet_wrap(~YEAR, nrow=4)+
     # scale_fill_viridis_c() +
     scale_fill_gradient2(low="darkblue", mid="white", high="red2", midpoint=0) +
     ggtitle(paste0(var, " distribution")) + 
     theme(axis.title = element_text(size=15),
           axis.text = element_text(size=14), 
           plot.title = element_text(hjust=0.5, size=18),
-          strip.text = element_text(size=14))
-  ggsave(p1, filename = paste0(folder, "/Env_map", "_", var, ".png"), dpi ="retina", width = 15, height = 15, device = "png")
+          strip.text = element_text(size=14)) + 
+    scale_x_continuous(breaks = c(1000, 3000, 5000))
+  
+  ggsave(p1, filename = paste0(folder, "/Env_map", "_", var, ".png"), dpi ="retina", width = 15, height = 12, device = "png")
 }
 
 

@@ -8,7 +8,7 @@
 ##' @export
 
 
-refit <- function(run=run, obj=NULL, map=NULL, oldpar=NULL, pred_data=NULL, predict_type = 1, conf, bias_correct=FALSE, ...) {
+refit <- function(run=run, obj=NULL, map=NULL, oldpar=NULL, pred_data=NULL, predict_type = 1, conf, bias_correct=FALSE, config_TMB = "CPUE_age", ...) {
 
   # oldpar <- run$obj$env$last.par.best
   # if (!is.null(oldpar)) oldpar = oldpar
@@ -41,7 +41,8 @@ refit <- function(run=run, obj=NULL, map=NULL, oldpar=NULL, pred_data=NULL, pred
   if (conf$mixture_model == 0) { version <- paste0(getwd(), "/src/spatial_SDM_RE"); dllversion = "spatial_SDM_RE"} 
   if (conf$mixture_model == 1) { version <- paste0(getwd(), "/src/spatial_SDM_mixture"); dllversion = "spatial_SDM_mixture"}
   if (conf$mixture_model == 2) { version <- paste0(getwd(), "/src/spatial_SDM_variablebarrier"); dllversion = "spatial_SDM_variablebarrier"}
-  if (conf$cohort == 1) { version <- paste0(getwd(), "/src/spatial_SDM_condlogit_v2"); dllversion = "spatial_SDM_condlogit_v2" }
+  if (!is.null(conf$cohort)) if (conf$cohort == 1 & config_TMB == "CPUE_age") { version <- paste0(getwd(), "/src/spatial_SDM_cohort"); dllversion = "spatial_SDM_cohort" }
+  if (!is.null(conf$cohort)) if(conf$cohort == 1 & config_TMB == "Page_CPUE") { version <- paste0(getwd(), "/src/spatial_SDM_condlogit_v2"); dllversion = "spatial_SDM_condlogit_v2" }
   if (conf$mixture_model == 3) { version <- paste0(getwd(), "/src/spatial_SDM_RE_delta"); dllversion = "spatial_SDM_RE_delta"}
   dyn.load(dynlib(version))
   
@@ -143,6 +144,7 @@ cv <- function(run=run, data, k_fold = 5, conf, seed=123, ...) {
 	bla$folds = qqq
 	
 	# now need to rerun the model (no change to it) by leaving out the specific fold 
+	Res_all <- c()
 	SSE =  c()
 	MRE = c()
 	LL =  c()
@@ -152,6 +154,7 @@ cv <- function(run=run, data, k_fold = 5, conf, seed=123, ...) {
 	for (cv_fold in 1:k_fold){
 	keep = matrix(0, nrow=nrow(bla), ncol=conf$Nage)
 	keep[which(bla$folds != cv_fold),] = 1
+	left = which(bla$folds == cv_fold)
 	
   tmb_data_new <- data$tmb_data
 	tmb_data_new$to_keep = keep  
@@ -201,8 +204,8 @@ cv <- function(run=run, data, k_fold = 5, conf, seed=123, ...) {
     opt_phase3 <- fit_tmb(new_tmb_obj, lower=-15, upper=15, getsd=FALSE, bias.correct=FALSE, control = list(eval.max = 20000, iter.max = 20000, trace = TRUE))          
 
     # preparing the output
-    response <- data$tmb_data$yobs[which(bla$folds == cv_fold),]
-    mu <- run$obj$report()$mu[which(bla$folds == cv_fold),]
+    response <- data$tmb_data$yobs[left,]
+    mu <- run$obj$report()$mu[left,]
     
     sse <- apply((response - mu)^2, 2, sum, na.rm=T)
     
@@ -210,11 +213,40 @@ cv <- function(run=run, data, k_fold = 5, conf, seed=123, ...) {
     ll <- apply(NLL, 2, sum)
     elpd <- apply(NLL, 2, function(.x) log_sum_exp(.x) - log(length(.x)))
     
+		new = cbind(iter = cv_fold, id = left, yobs = response, mu = mu)
     SSE = rbind(SSE, sse)
     LL = rbind(LL, ll)
     ELPD = rbind(ELPD, elpd)
+		Res_all <- rbind(Res_all, new)
+		
 	}    
     
-    return(list(SSE=SSE, LL=LL, ELPD=ELPD, yobs = response, mu=mu))
+  return(list(Res_all=Res_all, SSE=SSE, LL=LL, ELPD=ELPD))
   }
 
+
+
+
+
+
+
+recompute_basemodel <- function(run){
+  
+  tmb_data_new <- run$data$tmb_data
+  
+  new_tmb_obj <- TMB::MakeADFun(
+    data = tmb_data_new,
+    parameters = run$obj$env$parList(),
+    map = run$map,
+    random = c("RE", "epsilon_st"),
+    DLL = dllversion,
+    silent = TRUE
+  )
+  
+  opt_phase3 <- fit_tmb(new_tmb_obj, lower=-15, upper=15, getsd=FALSE, bias.correct=FALSE, control = list(eval.max = 20000, iter.max = 20000, trace = TRUE))          
+  
+  run$obj = new_tmb_obj
+  run$opt = opt_phase3
+  
+  return(run)
+}

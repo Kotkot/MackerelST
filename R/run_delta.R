@@ -32,7 +32,7 @@ Map_phase1$logslope <- factor(NA)
 Map_phase1$transf_rho_age_absc <- factor(rep(NA, length(data$tmb_params$transf_rho_age_absc)))
 Map_phase1$transf_rho_age <- factor(rep(NA, length(data$tmb_params$transf_rho_age)))
 Map_phase1$transf_rho_absc <- factor(rep(NA, length(data$tmb_params$transf_rho_absc)))
-Map_phase1$transf_rho <- factor(rep(NA, length(data$tmb_params$transf_rho)))
+Map_phase1$logKappa <- factor(rep(NA, length(data$tmb_params$logKappa)))
 Map_phase1$logKappa_absc <- factor(rep(NA, length(data$tmb_params$logKappa_absc)))
 Map_phase1$omega_absc <- factor(rep(NA, length(data$tmb_params$omega_absc)))
 Map_phase1$omega <- factor(rep(NA, length(data$tmb_params$omega)))
@@ -40,6 +40,7 @@ Map_phase1$logTauO_absc <- factor(rep(NA, length(data$tmb_params$logTauO_absc)))
 Map_phase1$logTauO <- factor(rep(NA, length(data$tmb_params$logTauO)))
 Map_phase1$epsilon_st_absc <- factor(rep(NA, length(data$tmb_params$epsilon_st_absc)))
 Map_phase1$logTauE_absc <- factor(rep(NA, length(data$tmb_params$logTauE_absc)))
+Map_phase1$logsds <- factor(rep(NA, length(data$tmb_params$logsds)))
 Map_phase1$logTauE <- factor(rep(NA, length(data$tmb_params$logTauE)))
 
 Map_phase1$ln_tau_G_absc <- factor(rep(NA, length(data$tmb_params$ln_tau_G_absc)))# not estimating the random vessel effect
@@ -76,15 +77,18 @@ Map_phase2$transf_rho_age_absc <- factor(rep(NA, length(data$tmb_params$transf_r
 Map_phase2$transf_rho_age <- factor(rep(NA, length(data$tmb_params$transf_rho_age)))
 
 Map_phase2$transf_rho_absc <- factor(rep(NA, length(data$tmb_params$transf_rho_absc)))
-Map_phase2$transf_rho <- factor(rep(NA, length(data$tmb_params$transf_rho)))
+if(conf$ARorIID[2] != 0) Map_phase2$transf_rho <- factor(rep(NA, length(data$tmb_params$transf_rho)))
+if(conf$ARorIID[2] == 1) Map_phase2$transf_rho <- factor(rep(300000, length(data$tmb_params$transf_rho)))
+
 Map_phase2$logKappa_absc <- factor(rep(NA, length(data$tmb_params$logKappa_absc)))
+Map_phase2$logKappa <- factor(rep(123456, length(data$tmb_params$logKappa)))
 Map_phase2$omega_absc <- factor(rep(NA, length(data$tmb_params$omega_absc)))
 Map_phase2$omega <- factor(rep(NA, length(data$tmb_params$omega)))
 Map_phase2$logTauO_absc <- factor(rep(NA, length(data$tmb_params$logTauO_absc)))
 Map_phase2$logTauO <- factor(rep(NA, length(data$tmb_params$logTauO)))
 Map_phase2$epsilon_st_absc <- factor(rep(NA, length(data$tmb_params$epsilon_st_absc)))
 Map_phase2$logTauE_absc <- factor(rep(NA, length(data$tmb_params$logTauE_absc)))
-Map_phase2$logTauE <- factor(rep(NA, length(data$tmb_params$logTauE)))
+if(conf$ARorIID[2] != 2) Map_phase2$logsds <- factor(rep(NA, length(data$tmb_params$logsds)))
 
 Map_phase2$ln_tau_G_absc <- factor(rep(NA, length(data$tmb_params$ln_tau_G_absc)))# not estimating the random vessel effect
 Map_phase2$RE_absc <- factor(rep(NA,length(data$tmb_params$RE_absc)))# not estimating the random vessel effect
@@ -113,6 +117,7 @@ endTime-startTime
 Map_phase3 <- list()
 Map_phase3$beta <- matrix(1:(ncol(data$tmb_data$X)*data$tmb_data$Nage), nrow=ncol(data$tmb_data$X), ncol= data$tmb_data$Nage, byrow=F)  
 Map_phase3$beta <- factor(Map_phase3$beta)         
+if(conf$ARorIID[2] != 2) Map_phase3$logsds <- factor(rep(NA, length(data$tmb_params$logsds)))
 
 if (conf$density_dependence == FALSE){
   Map_phase3$s50_absc <- factor(NA)
@@ -124,18 +129,24 @@ if (conf$density_dependence == FALSE){
 if (conf$mixture_model == 3) {
   if(conf$ARorIID[1] == 0) Map_phase3$transf_rho_absc <- factor(rep(NA, length(data$tmb_params$transf_rho_absc)))
   if(conf$ARorIID[1] == 1) Map_phase3$transf_rho_absc <- factor(rep(20000, length(data$tmb_params$transf_rho_absc)))
+  if(conf$ARorIID[2] != 0) Map_phase3$transf_rho <- factor(rep(NA, length(data$tmb_params$transf_rho)))
+  if(conf$ARorIID[2] == 1) Map_phase3$transf_rho <- factor(rep(300000, length(data$tmb_params$transf_rho)))
   
 	Map_phase3$transf_rho_age_absc <- factor(rep(NA, length(data$tmb_params$transf_rho_age_absc)))
 	Map_phase3$transf_rho_age <- factor(rep(NA, length(data$tmb_params$transf_rho_age)))
 
-  Map_phase3$transf_rho <- factor(rep(NA, length(data$tmb_params$transf_rho)))
-  Map_phase3$logTauE <- factor(rep(NA, length(data$tmb_params$logTauE)))
+  # Map_phase3$transf_rho <- factor(rep(NA, length(data$tmb_params$transf_rho)))
+  # Map_phase3$logTauE <- factor(rep(NA, length(data$tmb_params$logTauE)))
+	Map_phase3$logKappa <- factor(rep(123456, length(data$tmb_params$logKappa)))
+	Map_phase3$logKappa_absc <- factor(rep(1234567, length(data$tmb_params$logKappa_absc)))
   
   Map_phase3$ln_tau_G_absc <- factor(rep(NA, length(data$tmb_params$ln_tau_G_absc)))
   Map_phase3$RE_absc <- factor(rep(NA,length(data$tmb_params$RE_absc)))
   
   Map_phase3$logTauE_absc <- factor(rep(30000, length(data$tmb_params$logTauE_absc)))
-  Map_phase3$logKappa_absc <- factor(rep(40000, length(data$tmb_params$logKappa_absc)))
+  Map_phase3$logTauE_absc <- factor(rep(30000, length(data$tmb_params$logTauE_absc)))
+  # Map_phase3$logKappa <- factor(rep(40000, length(data$tmb_params$logKappa)))
+  # Map_phase3$logTauE <- factor(rep(40000, length(data$tmb_params$logKappa)))
 }
 
 if (conf$family != 0) Map_phase3$thetaf = factor(rep(NA, length(data$tmb_params$thetaf)))
@@ -152,9 +163,11 @@ if (conf$keep_omega == FALSE) {
   map_beta <- Map_phase3$beta
   map_beta <- factor(map_beta, labels = seq(1, sum(!is.na(map_beta))))		
   data$tmb_params$beta <- matrix(old_par[map_beta], nrow=ncol(data$tmb_data$X), ncol= data$tmb_data$Nage, byrow=F)   
-  data$tmb_params$ln_tau_G <- matrix(set_par_value(opt_phase1$par, "ln_tau_G"), nrow=length(data$tmb_data$nobs_RE), ncol= data$tmb_data$Nage, byrow=F)  
-  data$tmb_params$RE <- matrix(set_par_value(tmb_obj_phase1$env$last.par.best, "RE"), nrow=data$tmb_data$nobs_RE, ncol= data$tmb_data$Nage, byrow=F) 
-  
+  data$tmb_params$ln_tau_G <- matrix(set_par_value(opt_phase2$par, "ln_tau_G"), nrow=length(data$tmb_data$nobs_RE), ncol= data$tmb_data$Nage, byrow=F)  
+  data$tmb_params$RE <- matrix(set_par_value(tmb_obj_phase2$env$last.par.best, "RE"), nrow=data$tmb_data$nobs_RE, ncol= data$tmb_data$Nage, byrow=F) 
+  data$tmb_params$logTauE <- set_par_value(opt_phase2$par, "logTauE")
+  if(conf$ARorIID[2] == 1) data$tmb_params$transf_rho <- rep(set_par_value(opt_phase2$par, "transf_rho"), length(data$tmb_params$transf_rho))
+  data$tmb_params$logKappa <- rep(set_par_value(opt_phase2$par, "logKappa"), length(data$tmb_params$logKappa))
   data$tmb_params$epsilon_st <- array(set_par_value(tmb_obj_phase2$env$last.par.best, "epsilon_st"), dim=c(data$tmb_data$Nmesh, data$tmb_data$Nyear, data$tmb_data$Nage))
   # 
   
