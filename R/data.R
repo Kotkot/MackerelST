@@ -163,30 +163,16 @@ Prepare_data = function(bio, catch, conf, rerun_stack, catchability_var=NULL) {
     corr_list <- list()
     for (yr in seq_along(conf$years)) {
       corr_list[[yr]] <- cor(subset(data, YEAR == conf$years[yr])[,grep(grep_val, colnames(data))+c(1:(conf$Nage))-1], use = "complete.obs")
-      # corr_list[[yr]] <- corr_list[[yr]][conf$ages, conf$ages]
     }
     Corr_all <- do.call(rbind, corr_list)
-  # if (conf$Nage < 10) 
-  # {
-  #   Corr_all <- diag(conf$Nage)
-  # }  
 
   # If using only the same barrier across years
-  # if (conf$Model_type == "Normal") {
-  A <- spde$A
-  A_st <- INLA::inla.spde.make.A(bspde$mesh,
-                                 loc = as.matrix(fake_data[, c("sdm_x", "sdm_y"), drop = FALSE]))
-  
-  # }
-  # to modify the mesh structure to account for the barrier effect that is changing annually (both land and area with zero fish)
-  # if (conf$Model_type == "Annual_barrier") {
-  #   Make_spde_A <- function(yr) INLA::inla.spde.make.A(no_fish_zone[[yr]]$mesh, as.matrix(data[which(data$YEAR == (sort(unique(data$YEAR))[yr])), c("sdm_x", "sdm_y")]))
-  #   A_st <- c()
-  #   for (yr in seq_along(sort(unique(data$YEAR))))  A_st <- rbind(A_st, Make_spde_A(yr))
-  # }
-  # 
-  n_s <- nrow(spde$mesh$loc)
-  Nmesh <- n_s
+		A <- spde$A
+		A_st <- INLA::inla.spde.make.A(bspde$mesh,
+																	 loc = as.matrix(fake_data[, c("sdm_x", "sdm_y"), drop = FALSE]))
+		
+		n_s <- nrow(spde$mesh$loc)
+		Nmesh <- n_s
   
   ### Now prepare the input data for the prediction (based on 10 x 10 km grid?) 
   ## Reading in the covariate information
@@ -364,44 +350,6 @@ Prepare_data = function(bio, catch, conf, rerun_stack, catchability_var=NULL) {
     )
   }
 
-#   if (conf$Model_type == "Annual_barrier" & conf$include_age_correlation == "allinone") {
-#       tmb_data <- list(
-#         Nage             = Nage,
-#         X                = as.matrix(X),
-#         X_mix            = as.matrix(X_mix),
-#         # yobs_vec         = as.numeric(unlist(yobs)),     # this is by row
-#         # yobs_index       = matrix(1:length(unlist(yobs)), nrow=Nobs, ncol=Nage)-1,     # this is by row
-#         yobs             = as.matrix(yobs),     # this is by row
-#         Nobs             = Nobs,
-#         spde_barrier     = make_barrier_spde(bspde),  # between 2010-2020, 2011 has the smallest coverage
-#         barrier_scaling  = bspde$barrier_scaling,
-#         RE_indexes       = RE_indexes,
-#         nobs_RE          = nobs_RE,
-#         ln_tau_G_index   = ln_tau_G_index,
-#         Aobs             = A,
-#         Ast              = A_st,
-#         A_spatial_index  = data$sdm_spatial_id - 1L,  
-#         year_i           = make_year_i(data$YEAR),
-#         Nyear            = Nyear,
-#         Nmesh            = Nmesh,
-#         Npred            = Npred,
-#         do_predict       = conf$Do_predict,
-#         corr_str         = conf$corr_str,
-#         include_dd       = as.integer(conf$density_dependence),
-#         calc_se					 = 0,
-#         X_proj					 = X_proj,
-#         X_proj_mix			 = X_proj_mix,
-#         A_proj					 = A_proj,
-#         proj_NA					 = proj_NA,
-#         to_keep          = matrix(1, nrow=Nrowyobs, ncol=Ncolyobs), 
-# 				family           = conf$family,            # does not matter right now because only the tweedie case is implemented
-#         link             = 1,
-# 				df 							 = 3, 
-# 				ARorIID          = conf$ARorIID,
-# 				sim              = 1
-#       )
-#     }
-    
   if (conf$Model_type == "Annual_barrier" & conf$mixture_model == 2) {
       tmb_data <- list(
         Nage             = Nage,

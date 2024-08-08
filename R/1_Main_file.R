@@ -75,14 +75,14 @@ load(".RData")
 #======================================================================================================#
 	
 ### Define configurations (both data and model) for the TMB model run
-	conf = conf_TMB(Model_type = "Annual_barrier",
+	conf = conf_TMB(Model_type = "Annual_barrier", # deprecated (just keep it as is)
 									keep_omega = FALSE, # keep the fixed spatial field or not
 									keep_epsilon = TRUE,# if false here and keep_omega=FALSE, then it is a non-spatial model 
-									include_age_correlation = "allinone",     # "none", "extra", "with_epsilon", "allinone"
+									include_age_correlation = "allinone",     # deprecated. "none", "extra", "with_epsilon", "allinone" (keep it as is)
 									plotting = FALSE,
-									Do_predict = 1,
+									Do_predict = 1,  # do prediction? FALSE saves some time
 									mixture_model = 0,  # 0 = spatial_SDM_RE (default), 1 = spatial_SDM_RE_mixture, 2=spatial_SDM_RE_barriereffect, 3=spatial_SDM_RE_delta
-									density_dependence = FALSE,
+									density_dependence = FALSE,   # include density dependent effect 
 									years = 2010:2020, # if including mixed_depth stop at 2019
 									plusgroup = 16,  
 									ages = 3:10,
@@ -103,43 +103,10 @@ load(".RData")
 									#                   # thetaf     = factor(c(2000,2001,rep(2002,2),rep(2003,6)))),# this is the number of age groups
 									#                   thetaf     = factor(c(2001:2010))),# this is the number of age groups
 									#                   # thetaf     = factor(c(2001:2010))),# this is the number of age groups
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(SST_0m_scl,k=3) + (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(SST_0m_scl,k=3) + s(REPNRTCHL_0m_scl,k=3)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(SST_0m_scl,k=3) + s(REPNRTCHL_0m_scl,k=3) + s(SSTfront_scl, k=3)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(SST_clim_0m_scl,k=3) + s(CHL_clim_0m_scl,k=3) + (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(SST_clim_0m_scl,k=3, by=YEAR_fct) + s(CHL_clim_0m_scl,k=3, by=YEAR_fct) + (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(SST_0m_scl,k=3) + s(REPNRTCHL_0m_scl,k=3) + (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) ),
-									formula_pres = formula(CPUE ~ 1),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR)+ (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(SSTfront_scl,k=3) + (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(CHL_clim_0m_scl,k=3) + (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(SST_clim_0m_scl,k=3) + (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(SST_clim_0m_scl,k=3) + s(CHL_clim_0m_scl, k=3) + (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + as.factor(Area) + (1|YearArea) + s(SST_0m_scl,k=3) + s(REPNRTCHL_0m_scl, k=3) ),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + as.factor(Area) + (1|YearArea)),
+									formula_pres = formula(CPUE ~ 1),  # only used with delta model 
 									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(SST_0m_scl,k=3) + s(REPNRTCHL_0m_scl, k=3) + s(OMLT_0m_scl, k=3) + (1|VESSEL)),
 									formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(SST_0m_scl,k=3) + s(OMLT_0m_scl, k=3) + (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(REPNRTCHL_0m_scl, k=3) + s(OMLT_0m_scl, k=3) + (1|VESSEL)),
-									# formula = formula(CPUE ~ 1 + (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(SST_0m_scl,k=3) + s(OMLT_0m_scl, k=3) + ti(SST_0m_scl, OMLT_0m_scl, k=4) + (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(SST_0m_scl,k=3) + (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(SST_0m_scl,k=3) + s(REPNRTCHL_0m_scl, k=3) + (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(REPNRTCHL_0m_scl, k=3) + (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(OMLT_0m_scl, k=3) + (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(SST_0m_scl,k=3) + (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) +  te(SST_0m_scl, OMLT_0m_scl, k=3) + (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + ti(SST_clim_0m_scl,k=3) + ti(CHL_clim_0m_scl, k=3) + ti(SST_clim_0m_scl, CHL_clim_0m_scl, k=3) + (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(SST_clim_0m_scl,k=3) + s(CHL_clim_0m_scl, k=3) + s(CHL_clim_1m_scl, k=3) + (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(SST_clim_0m_scl,k=3) + s(CHL_clim_0m_scl, k=3) + s(SST_clim_1m_scl,k=3) + s(CHL_clim_1m_scl, k=3) + (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(CHL_clim_0m_scl,k=3) + s(SSTfront_scl, k=3) + (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(SST_clim_0m_scl,k=3) + s(CHL_clim_0m_scl, k=3) + (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(SST_0m_scl,k=3) + s(REPNRTCHL_0m_scl,k=3) + s(SSTfront_scl, k=3) + (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(SST_clim_0m_scl,k=3) + s(REPNRTCHL_0m_scl,k=3) + (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(SST_clim_0m_scl,k=3) + s(CHL_clim_0m_scl,k=3) + s(SST_clim_1m_scl,k=3) + s(CHL_clim_1m_scl,k=3) + s(SSTfront_scl, k=3) + (1|VESSEL)),
-									# formula = formula(CPUE ~ -1 + as.factor(YEAR) ),
-									formula_mix = formula(CPUE ~ 1),
+									formula_mix = formula(CPUE ~ 1),   # only used when using a mixture model (deprecated)
 									mesh_type = "cutoff", # or "kmeans" "cutoff", or "own" (which modifies to the mackerel case)
 									knots_mesh = 250, # default 250
 									bias_correct = FALSE								
