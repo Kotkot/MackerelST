@@ -1,18 +1,15 @@
-#### TO DOs:
-# Include cohort-varying env effect: should be expressed in terms of random effect (to save some degree of freedom)
-# better deal with density-dependent effect
+#### Main code to examine works done in 
+# Effect of environmental drivers on the spatiotemporal distribution of mackerel at age in the Nordic Seas during 2010−20
+# by: Ono K. et al. 
+# in: ICES 2024 
+#
+# The current code lacks the underlying survey data but can be requested to the main author after obtaining the approval from PGNAPES.
+
 
 rm(list=ls())
-# rm(list=setdiff(ls(), c("pred_grid_or")))
-# setwd("D:/Dropbox/IMR_projects/Mackerel_distribution")
-# load("2010_2019.RData")
 load(".RData")
-# load("new.RData")  # this includes the new OMLT data until 2020
 
 ### libraries
-	# .libPaths(c("C:/Program Files/R/R-3.6.2/library", "C:/Program Files/R/R-4.2.2/library"))
-	# .libPaths("C:/Program Files/R/R-4.2.2/library")
-	# .libPaths(c("C:/Program Files/R/R-4.0.5/library"))
 	library(Matrix)
 	library(tidyverse)
 	library(sf)
@@ -22,11 +19,9 @@ load(".RData")
 	library(assertthat)
 	library(gridExtra)
 	library(sdmTMB)
-	# library(leaflet)
-	# library(leafsync)
+	library(sdmTMBextra)									 
 	library(ggplot2)
 	library(ggnewscale)
-	# library(mapview)
 	library(ggpmisc)
 	library(ggrepel)
 	library(TMB)
@@ -35,12 +30,11 @@ load(".RData")
 	library(MASS)
 	library(DHARMa)
   library(ggpubr)
-
+  library(ggConvexHull) #devtools::install_github("cmartin/ggConvexHull")
 
 
 ### Setting projection method and geographical extent of the study area 
 	projection <- 3035 # 32630 or 3035
-	# projection_km <- "+proj=utm +zone=30 +ellps=WGS84 +units=km +no_defs"
 	if (projection == 32630) projection_km <- "+proj=utm +zone=30 +ellps=WGS84 +units=km +no_defs"
 	if (projection == 3035) projection_km <- "+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +units=km +no_defs"
 
@@ -82,7 +76,7 @@ load(".RData")
 	
 ### Define configurations (both data and model) for the TMB model run
 	conf = conf_TMB(Model_type = "Annual_barrier",
-									keep_omega = FALSE,
+									keep_omega = FALSE, # keep the fixed spatial field or not
 									keep_epsilon = TRUE,# if false here and keep_omega=FALSE, then it is a non-spatial model 
 									include_age_correlation = "allinone",     # "none", "extra", "with_epsilon", "allinone"
 									plotting = FALSE,
@@ -151,9 +145,6 @@ load(".RData")
 									bias_correct = FALSE								
 									)
 
-	# library(GGally)
-	# dat[,c("SST_clim_0m_scl", "SST_clim_1m_scl", "CHL_clim_0m_scl", "CHL_clim_1m_scl", "SSTfront_scl")] %>% st_drop_geometry() %>% 
-	# ggcorr( )
 
 	# corr_list <- list()
 	# for (yr in seq_along(conf$years)) corr_list[[yr]] <- cor(subset(datdat$data, YEAR == conf$years[yr])[,98:106], use = "complete.obs")
@@ -164,8 +155,8 @@ load(".RData")
 
 
 ### Set up data & Define parameters
-	# datdat = Prepare_data(bio=bio, catch=dat, conf=conf, rerun_stack=FALSE) 
-datdat = Prepare_data(bio=bio, catch=dat, conf=conf, rerun_stack=FALSE, catchability_var="OMLT_0m_scl")
+	datdat = Prepare_data(bio=bio, catch=dat, conf=conf, rerun_stack=FALSE)
+	
 ### Calculating the values of the boxcox transformation
 	boxcox_pow = rep(0, length(conf$ages))
 	do_boxcox = FALSE 
@@ -183,13 +174,6 @@ datdat = Prepare_data(bio=bio, catch=dat, conf=conf, rerun_stack=FALSE, catchabi
 	datdat$tmb_data$boxcox_pow <- boxcox_pow
 
 
-	# datdat$tmb_params$beta = matrix(1, nrow=ncol(datdat$tmb_data$X), ncol=conf$Nage)
-### If you want to fix some fixed effect parameters after the fact (to simplify the model)
-	# aaa <- matrix(1:(ncol(datdat$tmb_data$X)*datdat$tmb_data$Nage), nrow=ncol(datdat$tmb_data$X), ncol= datdat$tmb_data$Nage, byrow=F)  
-	# colnames(datdat$tmb_data$X)
-	# aaa[16:19,1] = NA
-	# conf_extra <- list(beta = aaa)
-
 ### Fitting the model
 	startTime = Sys.time()
 	run = fit_mackerelST(data=datdat, conf, conf_extra = NULL)
@@ -200,38 +184,10 @@ datdat = Prepare_data(bio=bio, catch=dat, conf=conf, rerun_stack=FALSE, catchabi
 	(run$opt$max_gradient)
 	pl <- as.list(run$sdrep, "Estimate")
 
-### refit the modl with the boxcox transfo but with starting values as above
-	# datdat$tmb_params = pl
-	# datdat$tmb_data$link = 4
-	# startTime = Sys.time()
-	# run1 = fit_mackerelST(data=datdat, conf, conf_extra = NULL)
-	# endTime = Sys.time()
-	# endTime-startTime
-
-
-
-### Extract output
-	# betas <- matrix(run$opt$par[grep("beta", names(run$opt$par))], nrow=ncol(datdat$tmb_data$X), ncol= datdat$tmb_data$Nage, byrow=F)  
-	# output <- extract_output(run, datdat)
-
-
-### Adding some polygons info to the data
-	# 	polygons_df <- st_as_sf(x=All_strata %>% filter(ID != 13), coords = c("lon", "lat")) %>% st_set_crs(4326) %>% group_by(ID) %>% 
-	#   summarize(geometry = st_combine(geometry)) %>% st_cast("POLYGON") %>% st_transform(projection_km)
-	# 	# calculating distance of each observation to polygon because not all points are within polygons
-	# 	bla <- st_distance(polygons_df, st_as_sf(x=datdat$data, coords = c("sdm_x", "sdm_y")) %>% st_set_crs(projection_km) %>% st_cast("POINT"))
-	# 	datdat$data$Area = apply(bla, 2, which.min)
 		
 ### Doing plotting of the results 
 
     sfolder <- paste0(getwd(), "/plots/", conf$save_folder, "/", paste(attributes(conf)$fixed_effect[-1], collapse="_"), "_", attributes(conf)$RE_effects, conf$knots_mesh, "_corr",conf$corr_str, "_", conf$ARorIID)
-    # sfolder <- paste0(getwd(), "/plots/", conf$save_folder, "/SST_OMLT_CHL_ti_k4")
-    # sfolder <- paste0(getwd(), "/plots/", conf$save_folder, "/no_interaction_corr3_noclimvar_newcode")
-    # sfolder <- paste0(getwd(), "/plots/", conf$save_folder, "/test_oldcode")
-    # sfolder <- paste0(getwd(), "/plots/", conf$save_folder, "/no_interaction_corr3_noclimvar_nostcor")
-    # sfolder <- paste0(getwd(), "/plots/", conf$save_folder, "/age3_10_ind")
-    # sfolder <- paste0(getwd(), "/plots/REPNRTCHL_0m_scl_VESSELnewmap")
-    # sfolder <- paste0(getwd(), "/plots/", conf$save_folder, "/test")
     if(file.exists(sfolder) == FALSE) dir.create(sfolder)
     
     ## save model output
@@ -242,13 +198,13 @@ datdat = Prepare_data(bio=bio, catch=dat, conf=conf, rerun_stack=FALSE, catchabi
       saveRDS(ALL, file=paste0(sfolder, "/run.rds"))
 
     ## Load the null model 
-      sfolder_nullmodel <- "D:/Dropbox/IMR_projects/Mackerel_distribution/plots/New_run/nullmodel250"
+      sfolder_nullmodel <- paste0(getwd(), "/plots/New_run/nullmodel250")
       ALL_nullmodel <- readRDS(paste0(sfolder_nullmodel, "/run.rds"))
       
           
     ## Model diagnostics
       # AIC
-        run$opt$AIC #194739
+        run$opt$AIC 
       
       # Check if all parameters are estimable  
         fixed_est <- summary(run$sdrep, "fixed")
@@ -262,7 +218,7 @@ datdat = Prepare_data(bio=bio, catch=dat, conf=conf, rerun_stack=FALSE, catchabi
         saveRDS(cross_val, file=paste0(sfolder, "/cross_val.rds"))
         
       # Self-testing of the model 
-        Nsim = 10 # originally run at 10 but should do 30 for final iteration
+        Nsim = 30 # originally run at 10 but should do 30 for final iteration
         ysim <- lapply(seq_len(Nsim), function(x) run$obj$simulate(par= run$obj$env$last.par.best, complete=TRUE))
         dat_fake <- datdat
         vals <- matrix(NA, nrow=Nsim, ncol=length(run$opt$par))
@@ -296,12 +252,28 @@ datdat = Prepare_data(bio=bio, catch=dat, conf=conf, rerun_stack=FALSE, catchabi
         }
         dev.off()
         
-        
-      # DHARma-like residual test (can be used for any kind of models) 
+                
+      # DHARma-like residual test (can be used for any kind of models) - code from sdmTMB for the one_sample_posterior to 
+			# get a MVN sample from the random effects while leaving the fixed effects at their MLE
         Nsim = 500
-        s_nb2 <- sapply(seq_len(Nsim), function(x) run$obj$simulate(par= run$obj$env$last.par.best, complete=FALSE)$yobs, simplify = 'array')
-        
-      # compare the number of zeros in the data with the number of zeros in the prediction
+				one_sample_posterior <- function(object, seed=123) {
+					set.seed(seed) 
+				  tmp <- object$obj$env$MC(n = 1L, keep = TRUE, antithetic = FALSE)
+					re_samp <- as.vector(attr(tmp, "samples"))
+					lp <- object$obj$env$last.par.best
+					p <- numeric(length(lp))
+					fe <- object$obj$env$lfixed()
+					re <- object$obj$env$lrandom()
+					p[re] <- re_samp
+					p[fe] <- lp[fe]
+					p
+				}
+
+				newpars <- one_sample_posterior(run, seed=123)  # this is to simulate a sample of the random effects from a MVN distribution
+        s_nb2 <- sapply(seq_len(Nsim), function(x) run$obj$simulate(par= newpars, complete=FALSE)$yobs, simplify = 'array')
+        pred_orig = run$obj$report()$mu
+      
+     # compare the number of zeros in the data with the number of zeros in the prediction
         grep_val = paste0("^", conf$ages[1], "$")
         col_sel = grep(grep_val, colnames(datdat$data))+c(1:(conf$Nage))-1
         nb_zero <- apply(datdat$data[,col_sel], 2, function(x) sum(x==0, na.rm=T)/length(x))
@@ -312,26 +284,27 @@ datdat = Prepare_data(bio=bio, catch=dat, conf=conf, rerun_stack=FALSE, catchabi
           abline(v=nb_zero[age], col="red")
         }
         nb_zero; apply(pred_zero,1,mean); # quite similar!
-        write.table(data.frame(obs=nb_zero, pred=pred_zero), file=paste0(sfolder, "/P_zero.txt"))
+        write.table(data.frame(obs=nb_zero, pred=pred_zero), file=paste0(sfolder, "/P_zero_04_2024a.txt"))
         
         for (age in 1:(conf$Nage)){
           to_keep = which(is.na(datdat$data[,col_sel[age]])==FALSE)
           r_nb2 <- DHARMa::createDHARMa(
             simulatedResponse = s_nb2[to_keep,age,],
             observedResponse = datdat$data[to_keep,col_sel[age]],
-            fittedPredictedResponse = fixed[to_keep,age]
+            fittedPredictedResponse = pred_orig[to_keep,age]
           )
-          png(paste0(sfolder, "/resid_age", age, ".png"), width= 10, height=6, units="in", res=300)
+          png(paste0(sfolder, "/resid_age", conf$ages[age], "_04_2024a.png"), width= 10, height=6, units="in", res=300)
           plot(r_nb2)
           dev.off()
+          png(paste0(sfolder, "/resid_age", conf$ages[age], "v2_04_2024a.png"), width= 6, height=6, units="in", res=300)
+          plotQQunif(simulationOutput = r_nb2)
+          dev.off()
+          png(paste0(sfolder, "/resid_age", conf$ages[age], "_04_30_2024.png"), width= 6, height=6, units="in", res=300)
+          plotQQunif(simulationOutput = r_nb2, testUniformity = T, testOutliers = F,
+                     testDispersion = F)
+          dev.off()
         }
-        
-      # one step ahead residual that avoids the issue of pit residuals for state-space model
-  			# osa_resid <- oneStepPredict(run$obj, observation.name ="yobs_vec", data.term.indicator = "keep", 
-  			#                             discrete=FALSE, method = "oneStepGaussianOffMode", subset=1:20)
-  			# qqnorm(osa_resid$residual); abline(0,1)
-  			# 
-  		
+				
       # We can also use the mcmc approach mentioned by Rufener to perform the QQplot analysis
       # Idea is to take 1 sample of the random effect (using stan or tmb directly) because laplace approx might have failed 
       # so QQplot might look perform even if model is OK (and vice)
@@ -342,27 +315,21 @@ datdat = Prepare_data(bio=bio, catch=dat, conf=conf, rerun_stack=FALSE, catchabi
         # post <- extract_mcmc(m_stan)
         
         # if TMB (we can take 10 random sample and see whether it changes the plot or not)
-          random <- unique(names(run$obj$env$par[run$obj$env$random]))
-          pl <- as.list(run$sdrep, "Estimate")
-          fixed <- !(names(pl) %in% random)
-          map_new <- lapply(pl[fixed], function(x) factor(rep(NA, length(x))))
-          C0 <- solve(run$obj$env$spHess(random=TRUE))    ## Covariance matrix of random effects        
-          Xr0 <- MASS::mvrnorm(10,random_est[,1],C0)       ## Generate one sample of random effects
-          oldpar = run$obj$env$last.par.best
+        # random <- unique(names(run$obj$env$par[run$obj$env$random]))
+        # pl <- as.list(run$sdrep, "Estimate")
+        # fixed <- !(names(pl) %in% random)
+        # map_new <- lapply(pl[fixed], function(x) factor(rep(NA, length(x))))
+        # C0 <- solve(run$obj$env$spHess(random=TRUE))    ## Covariance matrix of random effects        
+        # Xr0 <- MASS::mvrnorm(10,random_est[,1],C0)       ## Generate one sample of random effects
+        # oldpar = run$obj$env$last.par.best
         
-          for (it in 3:10) {
-            oldpar[c(grep("epsilon_st",names(oldpar)),grep("RE",names(oldpar)))] <- Xr0[it,]
-            # pred <- run$obj$report()$mu
-            # pred1 <- run$obj$report(oldpar)$mu
-            out <- Plot_residuals(run=run, data=datdat, parval= oldpar, conf=conf, name=paste0("QQplot_it",it), folder=sfolder, do_all=FALSE)
-          }
+        # for (it in 3:10) {
+          # oldpar[c(grep("epsilon_st",names(oldpar)),grep("RE",names(oldpar)))] <- Xr0[it,]
+          # # pred <- run$obj$report()$mu
+          # # pred1 <- run$obj$report(oldpar)$mu
+          # out <- Plot_residuals(run=run, data=datdat, parval= oldpar, conf=conf, name=paste0("QQplot_it",it), folder=sfolder, do_all=FALSE)
+        # }
         
-				# check consistency (takes a LOT OF time )
-					# chk <- checkConsistency(run$obj, par = run$opt$par, n=500)
-					# chk
-					# summary(chk)
-					# p-value=0, but the simulation sample size is small so this is logical for a very complex model. 
-					# this is tricky for complex model probably...
 					
     ## Maps of spatial residuals
        var.select = "SST_0m"
@@ -567,7 +534,6 @@ datdat = Prepare_data(bio=bio, catch=dat, conf=conf, rerun_stack=FALSE, catchabi
       
     ## Calculating the conditional R2 (in link space) for each age group
         fixed <- run$obj$report(run$obj$env$last.par.best)$fixed_noRE
-        # fixed <- run$obj$report(run$obj$env$last.par.best)$fixed
         spatiotemporal <- run$obj$report(run$obj$env$last.par.best)$epsilon_st_A_mat
         nullmodel_method = "obs"  # "obs" or "Nakagawa"
         
@@ -601,7 +567,6 @@ datdat = Prepare_data(bio=bio, catch=dat, conf=conf, rerun_stack=FALSE, catchabi
     ## Calculating the conditional R2 (in link space) for each age group
     ## But this time, we divide by spatial strata
         fixed <- run$obj$report(run$obj$env$last.par.best)$fixed_noRE
-        # fixed1 <- run$obj$report(run$obj$env$last.par.best)$fixed
         beta_est <- run$obj$report(run$obj$env$last.par.best)$beta
         X1 <- datdat$tmb_data$X; X1[, which((1:ncol(X1) %in% grep("YEAR", colnames(X1))) == FALSE)] <- 0; Year_est <- X1 %*% beta_est
         X1 <- datdat$tmb_data$X; X1[, which((1:ncol(X1) %in% grep("SST", colnames(X1))) == FALSE)] <- 0; SST_est <- X1 %*% beta_est
@@ -659,10 +624,13 @@ datdat = Prepare_data(bio=bio, catch=dat, conf=conf, rerun_stack=FALSE, catchabi
         
         datdat$data %>% group_by(YEAR, Strata) %>% mutate(obs = `3`) %>% summarize(zeros = length(obs == 0)) %>% View()
         
-        write.table(data.frame(R2=R2_cond, fixed_contribution=fixed_contribution/R2_cond), file=paste0(sfolder, "/R2_contribution.txt"))
-        
-        
-### If we want to refit something      
+        write.table(data.frame(R2=R2_cond, 
+                               fixed_contribution=fixed_contribution/R2_cond,
+                               fixed_SST_contribution=fixed_SST_contribution/R2_cond,
+                               fixed_Year_contribution=fixed_Year_contribution/R2_cond,
+                               fixed_OMLT_contribution=fixed_OMLT_contribution/R2_cond
+                               ), file=paste0(sfolder, "/R2_contribution_bystrata.txt"))
+
 
   ## Case when we want to reactivate prediction
       if (load_result == TRUE){
@@ -681,9 +649,6 @@ datdat = Prepare_data(bio=bio, catch=dat, conf=conf, rerun_stack=FALSE, catchabi
         
     ## Producing the marginal effect plots (done within the model for more flexibility & complex covaraite structure)
       ## Marginal SST effect 
-        # SST_dat <- data.frame(expand.grid(SST_clim_0m_scl = seq(min(dat$SST_clim_0m_scl),max(dat$SST_clim_0m_scl),length.out=50),
-        #                                   CHL_clim_0m_scl = seq(min(dat$CHL_clim_0m_scl),max(dat$CHL_clim_0m_scl),length.out=50),
-        #                                   YEAR = 2020, X1000 = mean(datdat$data$X1000), Y1000=mean(datdat$data$Y1000), CPUE=1))
       SST_dat <- data.frame(expand.grid(SST_0m_scl = seq(min(datdat$data$SST_0m_scl),max(datdat$data$SST_0m_scl),length.out=50),
 			                                  REPNRTCHL_0m_scl = 0, OMLT_0m_scl = 0, Area = 2,  
 																				YEAR = 2019, X1000 = mean(datdat$data$X1000), Y1000=mean(datdat$data$Y1000), CPUE=1))
@@ -710,9 +675,6 @@ datdat = Prepare_data(bio=bio, catch=dat, conf=conf, rerun_stack=FALSE, catchabi
       ggsave(p1a, filename = paste0(sfolder, "/Marginal_SST_filter.jpeg"), dpi ="retina", width = 6, height = 4, device = "jpeg")
  
 		## Marginal CHL effect 
-			# CHL_dat <- data.frame(expand.grid(SST_clim_0m_scl = 0,
-			# 																	CHL_clim_0m_scl = seq(min(dat$CHL_clim_0m_scl),max(dat$CHL_clim_0m_scl),length.out=50),
-			# 																	YEAR = 2020, X1000 = mean(datdat$data$X1000), Y1000=mean(datdat$data$Y1000), CPUE=1))
 			CHL_dat <- data.frame(expand.grid(SST_0m_scl = 0,
 																				REPNRTCHL_0m_scl = seq(min(datdat$data$REPNRTCHL_0m_scl),max(datdat$data$REPNRTCHL_0m_scl),length.out=50),
 																				YEAR = 2019, OMLT_0m_scl = 0, Area = 2,
@@ -771,9 +733,6 @@ datdat = Prepare_data(bio=bio, catch=dat, conf=conf, rerun_stack=FALSE, catchabi
       ggsave(p1, filename = paste0(sfolder, "/Marginal_all_filter.jpeg"), dpi ="retina", width = 10, height = 4, device = "jpeg")
         
 		## SST effect with OMLT
-			# SST_dat <- data.frame(expand.grid(SST_clim_0m_scl = seq(min(dat$SST_clim_0m_scl),max(dat$SST_clim_0m_scl),length.out=50),
-																				# CHL_clim_0m_scl = seq(min(dat$CHL_clim_0m_scl),max(dat$CHL_clim_0m_scl),length.out=50),
-																				# YEAR = 2020, X1000 = mean(datdat$data$X1000), Y1000=mean(datdat$data$Y1000), CPUE=1))
 			SST_dat <- data.frame(expand.grid(SST_0m_scl = seq(min(datdat$data$SST_0m_scl),max(datdat$data$SST_0m_scl),length.out=50),
 																				OMLT_0m_scl = seq(min(datdat$data$OMLT_0m_scl),max(datdat$data$OMLT_0m_scl),length.out=50),
                                           REPNRTCHL_0m_scl = 0,
@@ -811,12 +770,8 @@ datdat = Prepare_data(bio=bio, catch=dat, conf=conf, rerun_stack=FALSE, catchabi
 			ggsave(p1, filename = paste0(sfolder, "/Marginal_all_filter_bivar_nodots.jpeg"), dpi ="retina", width = 6.5, height = 8, device = "jpeg")
 			
 		
-
-        
+       
     ## Calculating the adreport variables: activating the prediction (if not already activated) 
-			#   run1 <- run
-			#   run1$data$pred_grid$OMLT_0m_scl = 0
-			# 	Mod_pred <- refit(run=run1, pred_data= run1$data$pred_grid, predict_type=1, conf=conf)
       Mod_pred= run
 			
     ## Index of abundance
@@ -826,8 +781,6 @@ datdat = Prepare_data(bio=bio, catch=dat, conf=conf, rerun_stack=FALSE, catchabi
       qqq <- reshape2::melt(ttt)
       colnames(qqq) <- c("Age", "Year", "IA_IESSNS")
       qqq <- qqq %>% mutate(Year = as.numeric(Year), Age = as.numeric(as.character(factor(Age, labels=conf$ages))), IA_IESSNS = as.numeric(IA_IESSNS))
-      # p1 <- ggplot(qqq, aes(x=Year, y=IA_IESSNS, col=Age)) + geom_line(size=2) + theme_bw() + gg_control
-      # ggsave(p1, filename = paste0(getwd(), "/plots/VAST_type/", save_folder, "/", model_number, "/IA_IESSN.pdf"), dpi ="retina", width = 10, height = 10, device = "pdf")
       
       IA2 <- as.data.frame(summary(Mod_pred$sdrep, "report"))
       if (ncol(IA2) ==2 ) colnames(IA2) <- c("IA", "IA_sd")
@@ -855,374 +808,8 @@ datdat = Prepare_data(bio=bio, catch=dat, conf=conf, rerun_stack=FALSE, catchabi
       Plot_env(run = Mod_pred, var = "SST_0m", truncate=TRUE, folder=sfolder)
       Plot_env(run = Mod_pred, var = "REPNRTCHL_0m", truncate=TRUE, folder=sfolder)
       Plot_env(run = Mod_pred, var = "OMLT_0m", truncate=TRUE, folder=sfolder)
-      # Plot_env(run = Mod_pred, var = "CHL_clim_1m_scl", truncate=FALSE, folder=sfolder)
-      # Plot_env(run = Mod_pred, var = "SSTfront_scl", truncate=FALSE, folder=sfolder)
+     
       
       
  
-      p1 <- ggplot(datdat$pred_grid) +
-        geom_tile(aes(x=X1000, y=Y1000, fill = SSTfront_scl)) +
-        geom_sf(data = Atlantic_proj$geometry, color ="grey27", size = .2)+
-        xlab("") + ylab("") +
-        coord_sf()+ theme_bw() + 
-        facet_wrap(~YEAR)+
-        # scale_fill_viridis_c() +
-        scale_fill_gradient2(low="darkblue", mid="white", high="red2", midpoint=0) +
-        ggtitle(paste0("SSTfront_scl", " distribution")) + 
-        theme(axis.title = element_text(size=15),
-              axis.text = element_text(size=14), 
-              plot.title = element_text(hjust=0.5, size=18),
-              strip.text = element_text(size=14))
-      ggsave(p1, filename = paste0(sfolder, "/Env_map", "_", "SSTfront_scl", ".pdf"), dpi ="retina", width = 12, height = 10, device = "pdf")
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-           
-  # ## Case when we eliminate the extreme values of covariates (max = max(data))
-  #     pred_grid_new <- pred_grid   
-  #     pred_grid_new$CHL_scl <- ifelse(pred_grid_new$CHL_sc > max(data$CHL_sc), max(data$CHL_sc), pred_grid_new$CHL_sc)
-  #     pred_grid_new$mixed_scl <- ifelse(pred_grid_new$mixed_scl > max(data$mixed_scl), max(data$mixed_scl), pred_grid_new$mixed_scl)
-  #     pred_grid_new$SST_scl <- ifelse(pred_grid_new$SST_scl > max(data$SST_scl), max(data$SST_scl), pred_grid_new$SST_scl)
-  #     
-  #     Mod_extre <- refit(obj=tmb_obj_phase2, opt= opt_phase2, tmb_data=tmb_data, pred_grid=pred_grid_new) 
-  #     
-  #     plot_IA(report = Mod_extre$report, name = "rm_extreme", folder = sfolder)
-  #     CG_plots(Mod_extre$test2, name="rm_extreme", no_fish_zone=FALSE, folder = sfolder)
-  #     CG_plots(Mod_extre$test2, name="rm_extreme", no_fish_zone=TRUE, folder = sfolder)
-  #     
-  #     Plot_maps(pred_mu=Mod_extre$test2, pred_epsilon=Mod_extre$qwe2, name="rm_extreme", no_fish_zone=FALSE, folder=sfolder)
-  #     
-  #     
-
-      
-      
-      
-      
-      
-      
-      
-         
-      
- ##### Final plots of the results
-      
-      # # Create a continuous palette function
-      # Atlantic_proj2 <- st_transform(Atlantic, crs=projection_km)
-      # pal <- colorNumeric(c("#0C2C84", "#41B6C4", "#FFFFCC"), test2$Pred,
-                          # na.color = "transparent")
-      # # Layers
-      # Years = levels(as.factor(test2$YEAR))
-      # Ages = levels(as.factor(test2$AGE))
-      
-      # basemap <- leaflet() %>% 
-        # addProviderTiles(providers$Esri.OceanBasemap) %>%
-        # addSimpleGraticule(interval = 5)
-      
-      # #Be patient the following takes time as it produces 16 maps per year
-      # library(leafsync)
-      # maplist_byYEAR <- list()
-      
-      # for(q in Years){
-        # maplist_byYEAR[[q]] <- list()
-        # for(i in 1:13){
-          # sub_data <- subset(test2, subset=c(YEAR== q & AGE ==i))
-          # pal <- colorNumeric(c("#0C2C84", "#41B6C4", "#FFFFCC"), sub_data$Pred,
-                              # na.color = "transparent")
-          # map <- basemap
-          # .df <- test2 %>% 
-            # filter(YEAR==q, AGE==i) %>% 
-            # mutate(x=X1000,y=Y1000, z=Pred) %>% 
-            # dplyr::select(x,y,z) 
-          # r <- rasterFromXYZ(.df, crs = projection_km)
-          # r_masked <- mask(r, Atlantic_proj2, inverse=T)
-          # bladat <- data %>%
-            # filter(YEAR==q) 
-          # maplist_byYEAR[[q]][[i]] <- map %>%
-            # addRasterImage(r_masked, colors = pal, opacity = 1) %>%
-            # addCircleMarkers(
-              # lat=bladat$LAT, lng=bladat$LON, radius=0.5,
-              # color= "red") %>% 
-            # addLegend(pal = pal, values = sub_data$Pred, opacity = 1,
-                      # title =  paste0("Predictions<br>", q, " Age: ", i))
-        # }
-      # }
-      
-      # #You can visualize each Year plotting the following
-      
-      # latticeview(maplist_byYEAR$`2007`)
-      # # latticeview(maplist_byYEAR$`2008`)
-      # latticeview(maplist_byYEAR$`2009`)
-      # latticeview(maplist_byYEAR$`2010`)
-      # latticeview(maplist_byYEAR$`2011`)
-      # latticeview(maplist_byYEAR$`2012`)
-      # latticeview(maplist_byYEAR$`2013`)
-      # latticeview(maplist_byYEAR$`2014`)
-      # latticeview(maplist_byYEAR$`2015`)
-      # latticeview(maplist_byYEAR$`2016`)
-      # latticeview(maplist_byYEAR$`2017`)
-      # latticeview(maplist_byYEAR$`2018`)
-      # latticeview(maplist_byYEAR$`2019`)
-      # latticeview(maplist_byYEAR$`2020`)
-   
-      
-      
-      
-         
-      
-      # maplist_byAGE <- list()
-      
-      # for(i in Ages){
-        # maplist[[i]] <- list()
-        # for(q in Years){
-          # map <- basemap
-          # .df <- ALL_data %>% 
-            # filter(YEAR==q, AGE==i) %>% 
-            # mutate(x=X1000*1000,y=Y1000*1000, z=CPUE_pred) %>% 
-            # dplyr::select(x,y,z) 
-          # r <- rasterFromXYZ(.df, crs = CRS("+init=epsg:32630"))
-          # r_masked <- mask(r, Atlantic_proj, inverse=T)
-          # maplist_byAGE[[i]][[q]] <- map %>%
-            # addRasterImage(r_masked, colors = pal, opacity = 1) %>%
-            # addLegend(pal = pal, values = exp(predictions$data$est), opacity = 1,
-                      # title =  paste0("Predictions<br>", q, " Age: ", i))
-        # }
-        
-      # }
-      
-      # #You can visualize each Year plotting the following
-      
-      # latticeview(maplist_byAGE$`1`)
-      # #latticeview(maplist_byAGE$`2`)
-      # #latticeview(maplist_byAGE$`3`)     
-      
-      
-      
-      #### More plots using leaflet 
-      # # Create a continuous palette function
-      # pal <- colorNumeric(c("#0C2C84", "#41B6C4", "#FFFFCC"), test2$Pred,
-      #                     na.color = "transparent")
-      # # Layers
-      # Years = levels(as.factor(test2$YEAR))
-      # Ages = levels(as.factor(test2$AGE))
-      # 
-      # basemap <- leaflet() %>% 
-      #   addProviderTiles(providers$Esri.OceanBasemap) %>%
-      #   addSimpleGraticule(interval = 5)
-      # 
-      # #Be patient the following takes time as it produces 16 maps per year
-      # library(leafsync)
-      # maplist_byYEAR_PA <- list()
-      # 
-      # for(q in Years){
-      #   maplist_byYEAR_PA[[q]] <- list()
-      #   for(i in Ages){
-      #     map <- basemap
-      #     .df <- test2 %>% 
-      #       filter(YEAR==q, AGE==i) %>% 
-      #       mutate(x=X1000*1000,y=Y1000*1000, z=Pred) %>% 
-      #       dplyr::select(x,y,z) 
-      #     r <- rasterFromXYZ(.df, crs = CRS("+init=epsg:32630"))
-      #     r_masked <- mask(r, Atlantic_proj, inverse=T)
-      #     maplist_byYEAR_PA[[q]][[i]] <- map %>%
-      #       addRasterImage(r_masked, colors = pal, opacity = 1) %>%
-      #       addLegend(pal = pal, values = test2$Pred, opacity = 1,
-      #                 title =  paste0("Predictions<br>", q, " P(age ", i, ")"))
-      #   }
-      # }
-      # 
-      # #You can visualize each Year plotting the following
-      # 
-      # latticeview(maplist_byYEAR_PA$`2012`)
-      # latticeview(maplist_byYEAR_PA$`2013`)
-      # latticeview(maplist_byYEAR_PA$`2014`)
-      # latticeview(maplist_byYEAR_PA$`2015`)
-      # latticeview(maplist_byYEAR_PA$`2016`)
-      # latticeview(maplist_byYEAR_PA$`2017`)
-      # latticeview(maplist_byYEAR_PA$`2018`)
-      # latticeview(maplist_byYEAR_PA$`2019`)
-      # latticeview(maplist_byYEAR_PA$`2020`)
-      # 
-      # # By age
-      # maplist_byAGE_PA <- list()
-      # 
-      # for(i in Ages){
-      #   maplist_byAGE_PA[[i]] <- list()
-      #   for(q in Years){
-      #     map <- basemap
-      #     .df <- test2 %>% 
-      #       filter(YEAR==q, AGE==i) %>% 
-      #       mutate(x=X1000*1000,y=Y1000*1000, z=Pred) %>% 
-      #       dplyr::select(x,y,z) 
-      #     r <- rasterFromXYZ(.df, crs = CRS("+init=epsg:32630"))
-      #     r_masked <- mask(r, Atlantic_proj, inverse=T)
-      #     maplist_byAGE_PA[[i]][[q]] <- map %>%
-      #       addRasterImage(r_masked, colors = pal, opacity = 1) %>%
-      #       addLegend(pal = pal, values = test2$Pred, opacity = 1,
-      #                 title =  paste0("Predictions<br>", "P(age ", i, ") Year: ", q))
-      #   }
-      #   
-      # }
-      # 
-      # #You can visualize each Year plotting the following
-      # 
-      # latticeview(maplist_byAGE_PA$`1`)
-      # latticeview(maplist_byAGE_PA$`2`)
-      # latticeview(maplist_byAGE_PA$`3`)     
-      # latticeview(maplist_byAGE_PA$`4`)     
-      # latticeview(maplist_byAGE_PA$`5`)     
-      # latticeview(maplist_byAGE_PA$`6`)     
-      # latticeview(maplist_byAGE_PA$`7`)     
-      # latticeview(maplist_byAGE_PA$`8`)     
-      # latticeview(maplist_byAGE_PA$`9`)     
-      # latticeview(maplist_byAGE_PA$`10`)     
-      # latticeview(maplist_byAGE_PA$`11`)     
-      # 
-      
-      # 
-      # qres_tweedie <- function(TMBobject, y, mu, age, seed=NULL, to_remove) {
-      #   if(!is.null(seed)) set.seed(seed)
-      #   p <- stats::plogis(TMBobject$par[grep("thetaf", names(TMBobject$par))[age]]) + 1
-      #   dispersion <- exp(TMBobject$par[grep("ln_phi", names(TMBobject$par))[age]])
-      #   if (!is.null(to_remove)) u <- fishMod::pTweedie(q = y[-to_remove,age], p = p, mu = mu[-to_remove,age], phi = dispersion)
-      #   if (is.null(to_remove)) u <- fishMod::pTweedie(q = y[,age], p = p, mu = mu[,age], phi = dispersion)
-      #   if (p > 1 && p < 2)
-      #     if (!is.null(to_remove)) u[y[-to_remove,age] == 0] <- stats::runif(sum(y[-to_remove,age] == 0), min = 0, max = u[y[-to_remove,age] == 0])
-      #   if (is.null(to_remove)) u[y[,age] == 0] <- stats::runif(sum(y[,age] == 0), min = 0, max = u[y[,age] == 0])
-      #   stats::qnorm(u)
-      # }
-      # 
-      # do_qqplot <- function(age, opt=opt_phase3, obj = tmb_obj_phase3, seed=2,to_remove){
-      #   res <- as.data.frame(yobs)
-      #   res <- res[!is.na(yobs[,1]),]
-      #   res$resid <- qres_tweedie(opt, y=as.matrix(yobs), mu=obj$report()$mu, age=age, seed=seed, to_remove)
-      #   res$Year = data$YEAR[!is.na(yobs[,1])]
-      #   res$X <- data$X1000[!is.na(yobs[,1])]
-      #   res$Y <- data$Y1000[!is.na(yobs[,1])]
-      #   ggplot(res, aes(sample=resid)) + facet_wrap(.~Year) + stat_qq() + stat_qq_line() + theme_bw() +
-      #     coord_cartesian(xlim=c(-3,3),ylim=c(-3,3)) + ggtitle(paste0("Age ", age))
-      # }
-      # do_qqplot_grouped <- function(age, opt=opt_phase3, obj = tmb_obj_phase3, seed=2, to_remove){
-      #   res <- as.data.frame(yobs)
-      #   res <- res[!is.na(yobs[,1]),]
-      #   res$resid <- qres_tweedie(opt, y=as.matrix(yobs), mu=obj$report()$mu, age=age, seed=seed, to_remove)
-      #   res$Year = data$YEAR[!is.na(yobs[,1])]
-      #   res$X <- data$X1000[!is.na(yobs[,1])]
-      #   res$Y <- data$Y1000[!is.na(yobs[,1])]
-      #   ggplot(res, aes(sample=resid)) + stat_qq() + stat_qq_line() + theme_bw() +
-      #     coord_cartesian(xlim=c(-3,3),ylim=c(-3,3)) + ggtitle(paste0("Age ", age))
-      # }
-      # 
-      # 
-      # 
-      # opt_phase_use <- opt_phase2
-      # tmb_obj_phase_use <- tmb_obj_phase2
-      # 
-      # p1 <- do_qqplot(age=1, opt=opt_phase_use, obj=tmb_obj_phase_use, to_remove=to_remove) # OK
-      # ggsave(p1, filename = paste0(getwd(), "/plots/VAST_type/", save_folder, "/res_age1.pdf"), dpi ="retina", width = 10, height = 10, device = "pdf")
-      # p1 <- do_qqplot(age=2, opt=opt_phase_use, obj=tmb_obj_phase_use, to_remove=to_remove) # OK
-      # ggsave(p1, filename = paste0(getwd(), "/plots/VAST_type/", save_folder, "/res_age2.pdf"), dpi ="retina", width = 10, height = 10, device = "pdf")
-      # p1 <- do_qqplot(age=3, opt=opt_phase_use, obj=tmb_obj_phase_use, to_remove=to_remove) # OK-ish
-      # ggsave(p1, filename = paste0(getwd(), "/plots/VAST_type/", save_folder, "/res_age3.pdf"), dpi ="retina", width = 10, height = 10, device = "pdf")
-      # p1 <- do_qqplot(age=4, opt=opt_phase_use, obj=tmb_obj_phase_use, to_remove=to_remove) # hum...
-      # ggsave(p1, filename = paste0(getwd(), "/plots/VAST_type/", save_folder, "/res_age4.pdf"), dpi ="retina", width = 10, height = 10, device = "pdf")
-      # p1 <- do_qqplot(age=5, opt=opt_phase_use, obj=tmb_obj_phase_use, to_remove=to_remove) # hum...
-      # ggsave(p1, filename = paste0(getwd(), "/plots/VAST_type/", save_folder, "/res_age5.pdf"), dpi ="retina", width = 10, height = 10, device = "pdf")
-      # p1 <- do_qqplot(age=6, opt=opt_phase_use, obj=tmb_obj_phase_use, to_remove=to_remove) # hum...
-      # ggsave(p1, filename = paste0(getwd(), "/plots/VAST_type/", save_folder, "/res_age6.pdf"), dpi ="retina", width = 10, height = 10, device = "pdf")
-      # p1 <- do_qqplot(age=7, opt=opt_phase_use, obj=tmb_obj_phase_use, to_remove=to_remove) # hum...
-      # ggsave(p1, filename = paste0(getwd(), "/plots/VAST_type/", save_folder, "/res_age7.pdf"), dpi ="retina", width = 10, height = 10, device = "pdf")
-      # p1 <- do_qqplot(age=8, opt=opt_phase_use, obj=tmb_obj_phase_use, to_remove=to_remove) # OKish
-      # ggsave(p1, filename = paste0(getwd(), "/plots/VAST_type/", save_folder, "/res_age8.pdf"), dpi ="retina", width = 10, height = 10, device = "pdf")
-      # p1 <- do_qqplot(age=9, opt=opt_phase_use, obj=tmb_obj_phase_use, to_remove=to_remove) # OKish
-      # ggsave(p1, filename = paste0(getwd(), "/plots/VAST_type/", save_folder, "/res_age9.pdf"), dpi ="retina", width = 10, height = 10, device = "pdf")
-      # p1 <- do_qqplot(age=10, opt=opt_phase_use, obj=tmb_obj_phase_use, to_remove=to_remove) # OK
-      # ggsave(p1, filename = paste0(getwd(), "/plots/VAST_type/", save_folder, "/res_age10.pdf"), dpi ="retina", width = 10, height = 10, device = "pdf")
-      # 
-      # p1 <- do_qqplot_grouped(age=1, opt=opt_phase_use, obj=tmb_obj_phase_use, to_remove=to_remove) ; p1
-      # ggsave(p1, filename = paste0(getwd(), "/plots/VAST_type/", save_folder, "/res_age1_aggregated.pdf"), dpi ="retina", width = 10, height = 10, device = "pdf")
-      # p1 <- do_qqplot_grouped(age=2, opt=opt_phase_use, obj=tmb_obj_phase_use, to_remove=to_remove) ; p1
-      # ggsave(p1, filename = paste0(getwd(), "/plots/VAST_type/", save_folder, "/res_age2_aggregated.pdf"), dpi ="retina", width = 10, height = 10, device = "pdf")
-      # p1 <- do_qqplot_grouped(age=3, opt=opt_phase_use, obj=tmb_obj_phase_use, to_remove=to_remove) ; p1
-      # ggsave(p1, filename = paste0(getwd(), "/plots/VAST_type/", save_folder, "/res_age3_aggregated.pdf"), dpi ="retina", width = 10, height = 10, device = "pdf")
-      # p1 <- do_qqplot_grouped(age=4, opt=opt_phase_use, obj=tmb_obj_phase_use, to_remove=to_remove) ; p1
-      # ggsave(p1, filename = paste0(getwd(), "/plots/VAST_type/", save_folder, "/res_age4_aggregated.pdf"), dpi ="retina", width = 10, height = 10, device = "pdf")
-      # p1 <- do_qqplot_grouped(age=5, opt=opt_phase_use, obj=tmb_obj_phase_use, to_remove=to_remove) ; p1
-      # ggsave(p1, filename = paste0(getwd(), "/plots/VAST_type/", save_folder, "/res_age5_aggregated.pdf"), dpi ="retina", width = 10, height = 10, device = "pdf")
-      # p1 <- do_qqplot_grouped(age=6, opt=opt_phase_use, obj=tmb_obj_phase_use, to_remove=to_remove) ; p1
-      # ggsave(p1, filename = paste0(getwd(), "/plots/VAST_type/", save_folder, "/res_age6_aggregated.pdf"), dpi ="retina", width = 10, height = 10, device = "pdf")
-      # p1 <- do_qqplot_grouped(age=7, opt=opt_phase_use, obj=tmb_obj_phase_use, to_remove=to_remove) ; p1
-      # ggsave(p1, filename = paste0(getwd(), "/plots/VAST_type/", save_folder, "/res_age7_aggregated.pdf"), dpi ="retina", width = 10, height = 10, device = "pdf")
-      # p1 <- do_qqplot_grouped(age=8, opt=opt_phase_use, obj=tmb_obj_phase_use, to_remove=to_remove) ; p1
-      # ggsave(p1, filename = paste0(getwd(), "/plots/VAST_type/", save_folder, "/res_age8_aggregated.pdf"), dpi ="retina", width = 10, height = 10, device = "pdf")
-      # p1 <- do_qqplot_grouped(age=9, opt=opt_phase_use, obj=tmb_obj_phase_use, to_remove=to_remove) ; p1
-      # ggsave(p1, filename = paste0(getwd(), "/plots/VAST_type/", save_folder, "/res_age9_aggregated.pdf"), dpi ="retina", width = 10, height = 10, device = "pdf")
-      # p1 <- do_qqplot_grouped(age=10, opt=opt_phase_use, obj=tmb_obj_phase_use, to_remove=to_remove); p1
-      # ggsave(p1, filename = paste0(getwd(), "/plots/VAST_type/", save_folder, "/res_age10_aggregated.pdf"), dpi ="retina", width = 10, height = 10, device = "pdf")
-      # 
-      # # ggplot(res) +
-      # #   geom_point(aes_string("X", "Y", colour = "resid")) +
-      # #   geom_sf(data = Atlantic_proj$geometry/1000, color ="grey27", size = .2)+
-      # #   xlab("") + ylab("") +
-      # #   facet_wrap(~Year) +
-      # #   scale_color_gradient2() +
-      # #   theme_minimal() + coord_sf(xlim=c(-2000,2000),ylim=c(6000,8500)) +
-      # #   ggtitle("Residuals")
-      # # 
-      # 
-      
-      ## Residual maps
-      # out$out$fixed_pred  <-  unlist(pivot_longer(data.frame(run$rep$fixed)[-out$to_remove,], cols=1:10, names_to = "AGE", values_to ="fixed_pred") %>% dplyr::select(fixed_pred))
-      # out$out$RE_pred  <- unlist(pivot_longer(data.frame(run$rep$epsilon_st_A_mat)[-out$to_remove,], cols=1:10, names_to = "AGE", values_to ="RE_pred") %>% dplyr::select(RE_pred))
-      # res <- ggplot(Atlantic) + geom_sf() + geom_point(data = out$out %>% filter(age == 4), aes(x = LON,  y = LAT, col=residuals), size=1) + facet_wrap(.~YEAR) + theme_bw() + 
-        # scale_color_gradient2(low="blue",mid="white",high="red")
-      # ggsave(res, file=paste0(sfolder, "/res_map.pdf"), height=14, width=20, dpi=400)
-      # SST <- ggplot(Atlantic) + geom_sf() + geom_point(data = out$out %>% filter(age == 4), aes(x = LON,  y = LAT, col=SST_clim_0m_scl), size=1) + facet_wrap(.~YEAR) + theme_bw() + 
-        # scale_color_gradient2(low="blue",mid="white",high="red")
-      # ggsave(SST, file=paste0(sfolder, "/SST_map_july.pdf"), height=14, width=20, dpi=400)
-      # CHL <- ggplot(Atlantic) + geom_sf() + geom_point(data = out$out %>% filter(age == 4), aes(x = LON,  y = LAT, col=CHL_clim_0m_scl), size=1) + facet_wrap(.~YEAR) + theme_bw() + 
-        # scale_color_gradient2(low="blue",mid="white",high="red")
-      # ggsave(CHL, file=paste0(sfolder, "/CHL_map_july.pdf"), height=14, width=20, dpi=400)
-      # SST1 <- ggplot(Atlantic) + geom_sf() + geom_point(data = out$out %>% filter(age == 4), aes(x = LON,  y = LAT, col=SST_clim_1m_scl), size=1) + facet_wrap(.~YEAR) + theme_bw() + 
-        # scale_color_gradient2(low="blue",mid="white",high="red")
-      # ggsave(SST1, file=paste0(sfolder, "/SST_map_june.pdf"), height=14, width=20, dpi=400)
-      # CHL1 <- ggplot(Atlantic) + geom_sf() + geom_point(data = out$out %>% filter(age == 4), aes(x = LON,  y = LAT, col=CHL_clim_1m_scl), size=1) + facet_wrap(.~YEAR) + theme_bw() + 
-        # scale_color_gradient2(low="blue",mid="white",high="red")
-      # ggsave(CHL1, file=paste0(sfolder, "/CHL_map_june.pdf"), height=14, width=20, dpi=400)
-      # Front <- ggplot(Atlantic) + geom_sf() + geom_point(data = out$out %>% filter(age == 4), aes(x = LON,  y = LAT, col=SSTfront_scl), size=1) + facet_wrap(.~YEAR) + theme_bw() + 
-        # scale_color_gradient2(low="blue",mid="white",high="red")
-      # ggsave(Front, file=paste0(sfolder, "/Front_map_june.pdf"), height=14, width=20, dpi=400)
-      # fixed <- ggplot(Atlantic) + geom_sf() + geom_point(data = out$out %>% filter(age == 4), aes(x = LON,  y = LAT, col=fixed_pred), size=1) + facet_wrap(.~YEAR) + theme_bw() + 
-        # scale_color_gradient2(low="blue",mid="white",high="red")
-      # ggsave(fixed, file=paste0(sfolder, "/fixedeffect_map.pdf"), height=14, width=20, dpi=400)
-      # RE <- ggplot(Atlantic) + geom_sf() + geom_point(data = out$out %>% filter(age == 4), aes(x = LON,  y = LAT, col=RE_pred), size=1) + facet_wrap(.~YEAR) + theme_bw() + 
-        # scale_color_gradient2(low="blue",mid="white",high="red")
-      # ggsave(RE, file=paste0(sfolder, "/REeffect_map.pdf"), height=14, width=20, dpi=400)
-      
-      # # Resid vs covariate
-      # ggplot(data = out, aes(x = SSTfront_scl,  y = residuals)) + facet_wrap(.~age) + theme_bw() + geom_point() + geom_smooth()
-      # ggplot(data = out, aes(x = REPCHL_0m_scl,  y = residuals)) + facet_wrap(.~age) + theme_bw()+ geom_point() + geom_smooth()+ 
-        # scale_x_continuous(limits = c(-2,4))
-      # ggplot(data = out, aes(x = SST_0m_scl,  y = residuals)) + facet_wrap(.~age) + theme_bw()+ geom_point() + geom_smooth()
-      # ggplot(data = out, aes(x = vgpm_0m_scl,  y = residuals)) + facet_wrap(.~age) + theme_bw()+ geom_point() + geom_smooth()
-      # ggplot(data = out, aes(x = SST_1m_scl,  y = residuals)) + facet_wrap(.~age) + theme_bw()+ geom_point() + geom_smooth()
-      # ggplot(data = out, aes(x = REPCHL_1m_scl,  y = residuals)) + facet_wrap(.~age) + theme_bw()+ geom_point() + geom_smooth()
-      # ggplot(data = out, aes(x = REPCHL_1m_scl,  y = residuals)) + facet_wrap(.~age) + theme_bw()+ geom_point() + geom_smooth()
-      # ggplot(data = out, aes(x = SST_clim_0m_scl,  y = residuals)) + facet_wrap(.~age) + theme_bw()+ geom_point() + geom_smooth()
-      # ggplot(data = out, aes(x = CHL_clim_0m_scl,  y = residuals)) + facet_wrap(.~age) + theme_bw()+ geom_point() + geom_smooth() + 
-        # scale_x_continuous(limits = c(-2,4))
-      # ggplot(data = out, aes(x = BOTTDEPTH,  y = residuals)) + facet_wrap(.~age) + theme_bw()+ geom_point() + geom_smooth()
-      # ggplot(data = out, aes(x = vgpm_0m,  y = residuals)) + facet_wrap(.~age) + theme_bw()+ geom_point() + geom_smooth()
-      # ggplot(data = out, aes(x = CTDst,  y = residuals)) + facet_wrap(.~age) + theme_bw()+ geom_point() + geom_smooth()
-      # ggplot(data = out, aes(x = WP2st,  y = residuals)) + facet_wrap(.~age) + theme_bw()+ geom_point() + geom_smooth()
-      # ggplot(data = out, aes(x = VESSEL,  y = residuals)) + facet_wrap(.~age) + theme_bw()+ geom_boxplot() + geom_hline(yintercept=0, col="red", linetype=2)
-      # ggplot(data = out, aes(x = X1000,  y = residuals)) + facet_wrap(.~age) + theme_bw()+ geom_point() + geom_smooth()
-      # ggplot(data = out, aes(x = Y1000,  y = residuals)) + facet_wrap(.~age) + theme_bw()+ geom_point() + geom_smooth()
-      # ggplot(data = out, aes(x = STTYPE,  y = residuals)) + facet_wrap(.~age) + theme_bw()+ geom_boxplot() + geom_hline(yintercept=0, col="red", linetype=2)
-      
       
