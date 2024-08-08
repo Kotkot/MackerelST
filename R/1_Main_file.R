@@ -75,6 +75,7 @@ load(".RData")
 #======================================================================================================#
 	
 ### Define configurations (both data and model) for the TMB model run
+### inside "formula", one write codes as in other glm(m) packages and it can include smoother as implemented in mgcv (borrows its functionality) 
 	conf = conf_TMB(Model_type = "Annual_barrier", # deprecated (just keep it as is)
 									keep_omega = FALSE, # keep the fixed spatial field or not
 									keep_epsilon = TRUE,# if false here and keep_omega=FALSE, then it is a non-spatial model 
@@ -90,19 +91,6 @@ load(".RData")
 									link = 1, # 1 is log link, 4 is boxcox
 									corr_str = 1,  # 1 = AR1 correlation in spatial distribution between age (default), for each year, 2 = AR1 correlation in spatial distribution between year, for each age
 									ARorIID = 0, # c(1,2), # 0 = IID, 1 = AR1, 2 = user specified corr matrix
-									# conf_model = list(transf_rho = factor(rep(NA, 10))),
-									# conf_model = NULL,
-									# conf_model = list(ln_phi     = factor(c(1001:1010)),# this is the number of age groups
-									#                   # ln_phi     = factor(c(1001:1010)),
-									#                   # transf_rho = factor(rep(3000, 11)), # this is the number of year if corr_str = 0
-									#                   transf_rho = factor(rep(3001, 10)), # this is the number of ages if corr_str = 1
-									#                   # transf_rho1 = factor(rep(5000, 11)), # this is the number of year
-									#                   # logKappa = factor(rep(4000, 11)), # this is the number of year if corr_str = 0
-									#                   logKappa = factor(rep(4001, 10)), # this is the number of ages if corr_str = 1
-									#                   # logKappa1 = factor(rep(6000, 4)), # this is the number of year
-									#                   # thetaf     = factor(c(2000,2001,rep(2002,2),rep(2003,6)))),# this is the number of age groups
-									#                   thetaf     = factor(c(2001:2010))),# this is the number of age groups
-									#                   # thetaf     = factor(c(2001:2010))),# this is the number of age groups
 									formula_pres = formula(CPUE ~ 1),  # only used with delta model 
 									# formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(SST_0m_scl,k=3) + s(REPNRTCHL_0m_scl, k=3) + s(OMLT_0m_scl, k=3) + (1|VESSEL)),
 									formula = formula(CPUE ~ -1 + as.factor(YEAR) + s(SST_0m_scl,k=3) + s(OMLT_0m_scl, k=3) + (1|VESSEL)),
