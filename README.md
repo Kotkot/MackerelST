@@ -2,8 +2,8 @@ Effect of environmental drivers on the spatiotemporal distribution of mackerel a
 ================
 
 This repository contains codes to reproduce works done in the above paper. 
-The '/R' folder contains R codes to run the model and utility functions.
-The '/src' folder contains the source code in TMB 
+The */R* folder contains R codes to run the model and utility functions.
+The */src* folder contains the source code in TMB 
 
 
 ## Authors’ github accounts
