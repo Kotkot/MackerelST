@@ -18,7 +18,7 @@ fit_mackerelST <- function(data, conf, conf_extra=NULL) {
     if (conf$mixture_model == 2) { version <- paste0(getwd(), "/src/spatial_SDM_variablebarrier"); dllversion = "spatial_SDM_variablebarrier"}
     if (conf$mixture_model == 3) { version <- paste0(getwd(), "/src/spatial_SDM_RE_delta"); dllversion = "spatial_SDM_RE_delta"}
     if (conf$mixture_model == 0 & conf$density_dependence == TRUE) { version <- paste0(getwd(), "/src/spatial_SDM_RE_dd"); dllversion = "spatial_SDM_RE_dd"}
-    if (!is.null(conf$cohort)) { version <- paste0(getwd(), "/src/spatial_SDM_cohort"); dllversion = "spatial_SDM_cohort"}
+    if (!is.null(conf$cohort) & conf$cohort == 1) { version <- paste0(getwd(), "/src/spatial_SDM_cohort"); dllversion = "spatial_SDM_cohort"}
     if (conf$mixture_model == 4) { version <- paste0(getwd(), "/src/spatial_SDM_condlogit"); dllversion = "spatial_SDM_condlogit"}
 
     # dyn.unload(dynlib(version))
@@ -56,7 +56,7 @@ fit_mackerelST <- function(data, conf, conf_extra=NULL) {
     {
       Map_phase1$transf_rho_age <- factor(NA)
     }
-    if (conf$add_nugget != 1)  
+    if (conf$cohort == 1 & conf$add_nugget != 1)  
     {
       Map_phase1$transf_rho_nugget <- factor(NA)
       Map_phase1$logTau_nugget <- factor(NA)
@@ -86,11 +86,11 @@ fit_mackerelST <- function(data, conf, conf_extra=NULL) {
       data$tmb_params$beta_mix = data$tmb_params$beta_mix - 14
     }
     
-		if (conf$cohort == 0){
-			Map_phase1$init_age <- factor(rep(NA, length(data$tmb_params$init_age)))
-			Map_phase1$init_year <- factor(rep(NA, length(data$tmb_params$init_year)))
-			Map_phase1$RE_diff <- factor(rep(NA, length(data$tmb_params$RE_diff)))
-			Map_phase1$logcohort_SD <- factor(NA)
+	if (conf$cohort == 0){
+		# Map_phase1$init_age <- factor(rep(NA, length(data$tmb_params$init_age)))
+		# Map_phase1$init_year <- factor(rep(NA, length(data$tmb_params$init_year)))
+		# Map_phase1$RE_diff <- factor(rep(NA, length(data$tmb_params$RE_diff)))
+		# Map_phase1$logcohort_SD <- factor(NA)
 	}
 		
 		
@@ -208,10 +208,10 @@ fit_mackerelST <- function(data, conf, conf_extra=NULL) {
     }
  
  		if (conf$cohort == 0){
-			Map_phase2$init_age <- factor(rep(NA, length(data$tmb_params$init_age)))
-			Map_phase2$init_year <- factor(rep(NA, length(data$tmb_params$init_year)))
-			Map_phase2$RE_diff <- factor(rep(NA, length(data$tmb_params$RE_diff)))
-			Map_phase2$logcohort_SD <- factor(NA)
+			# Map_phase2$init_age <- factor(rep(NA, length(data$tmb_params$init_age)))
+			# Map_phase2$init_year <- factor(rep(NA, length(data$tmb_params$init_year)))
+			# Map_phase2$RE_diff <- factor(rep(NA, length(data$tmb_params$RE_diff)))
+			# Map_phase2$logcohort_SD <- factor(NA)
 		}
 		
     if (conf$add_nugget != 1)  
